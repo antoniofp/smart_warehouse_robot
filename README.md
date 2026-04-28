@@ -73,4 +73,3 @@ ros2 launch astra_camera astra.launch.xml
 
 ---
 
-*This project is part of a University Final Project.*
