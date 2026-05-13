@@ -18,27 +18,40 @@ This repository contains the custom development nodes, launch configurations, an
 
 ```text
 smart_warehouse_robot/
-├── src/                # Custom ROS 2 packages
-├── docs/               # Technical documentation and PDFs
-├── README.md           # Main documentation
+├── src/                # Custom ROS 2 packages (Your code goes here!)
+├── docs/               # Technical documentation, guides, and PDFs
+├── README.md           # Main project entry point
 └── .gitignore          # ROS 2 & Python ignore rules
 ```
 
+## 📖 System Documentation
+For a deep dive into the Docker filesystem, hardware configurations, and the ROS 2 workspace architecture we discovered, see:
+👉 **[Comprehensive System Documentation](docs/Comprehensive_System_Documentation.md)**
+
 ## ⚙️ Environment Setup
 
-The project operates across three primary ROS 2 workspaces. In every new terminal, you must source the base environments:
+The project operates across four layered ROS 2 workspaces (Overlays). In every new terminal, you must source them in order:
 
-### 1. Library Workspace (Drivers)
+### 1. Base Layer (Foxy)
+The standard ROS 2 installation.
+```bash
+source /opt/ros/foxy/setup.bash
+```
+
+### 2. Library Workspace (Drivers)
+Contains low-level drivers for motors, LIDAR, and sensors.
 ```bash
 source /root/yahboomcar_ros2_ws/software/library_ws/install/setup.bash
 ```
 
-### 2. Main Workspace (Yahboom Logic)
+### 3. Main Workspace (Yahboom Logic)
+Contains the factory robot logic and Yahboom-specific packages.
 ```bash
 source /root/yahboomcar_ros2_ws/yahboomcar_ws/install/setup.bash
 ```
 
-### 3. Project Workspace (Your Logic)
+### 4. Project Workspace (Your Logic)
+This is where your custom warehouse navigation code lives.
 From the root of this repository:
 ```bash
 colcon build
