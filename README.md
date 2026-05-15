@@ -28,57 +28,59 @@ smart_warehouse_robot/
 For a deep dive into the Docker filesystem, hardware configurations, and the ROS 2 workspace architecture we discovered, see:
 👉 **[Comprehensive System Documentation](docs/Comprehensive_System_Documentation.md)**
 
-## ⚙️ Environment Setup
+## 🐳 Docker Setup
 
-The project operates across four layered ROS 2 workspaces (Overlays). In every new terminal, you must source them in order:
+The project environment is pre-configured inside a Docker container. Use the following commands to start and enter the environment from the Jetson terminal:
 
-### 1. Base Layer (Foxy)
-The standard ROS 2 installation.
 ```bash
-source /opt/ros/foxy/setup.bash
+# Start the container
+docker start beautiful_snyder
+
+# Enter the container (Open a new shell)
+docker exec -it beautiful_snyder bash
 ```
 
-### 2. Library Workspace (Drivers)
-Contains low-level drivers for motors, LIDAR, and sensors.
+## ⚙️ Environment Setup (The 4 Layers)
+
+The system uses a **4-Layer Overlay** architecture. You must source these layers in every new terminal to access the specific nodes and launch files they provide.
+
+| Layer | Source Command | Purpose / Contents |
+| :--- | :--- | :--- |
+| **1. Base** | `source /opt/ros/foxy/setup.bash` | Standard ROS 2 Foxy core. |
+| **2. Library** | `source /root/yahboomcar_ros2_ws/software/library_ws/install/setup.bash` | Hardware drivers (Lidar, Camera). |
+| **3. Main** | `source /root/yahboomcar_ros2_ws/yahboomcar_ws/install/setup.bash` | Robot models, Yahboom bringup & nav logic. |
+| **4. Project** | `source /root/smart_warehouse_robot/install/setup.bash` | Your custom code & patched `slam_toolbox`. |
+
+---
+
+## 🚦 Quick Start Guide
+
+Follow these steps in separate terminals inside the Docker container.
+
+### Step 1: Hardware Bringup
+Connects to the motors and the Lidar sensor.
+*   **Requires:** Layers 1, 2, and 3.
 ```bash
-source /root/yahboomcar_ros2_ws/software/library_ws/install/setup.bash
+ros2 launch yahboomcar_nav laser_bringup_launch.py
 ```
 
-### 3. Main Workspace (Yahboom Logic)
-Contains the factory robot logic and Yahboom-specific packages.
+### Step 2: SLAM Mapping
+Starts the mapping engine to build a 2D floor plan.
+*   **Requires:** Layers 1, 2, 3, and 4.
+*   **Note:** We use `CycloneDDS` to prevent memory crashes on the Jetson.
 ```bash
-source /root/yahboomcar_ros2_ws/yahboomcar_ws/install/setup.bash
+export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+ros2 launch slam_toolbox online_async_launch.py
 ```
 
-### 4. Project Workspace (Your Logic)
-This is where your custom warehouse navigation code lives.
-From the root of this repository:
+### Step 3: Visualization (RViz)
+Opens a pre-configured RViz window to see the robot and the map.
+*   **Requires:** Layers 1, 2, and 3.
 ```bash
-colcon build
-source install/setup.bash
+ros2 launch yahboomcar_description display_R2.launch.py
 ```
 
-## 🚦 Hardware Bringup
-
-Run each of these in a separate terminal:
-
-### A. Base Node (Motors & Odometry)
-```bash
-ros2 launch yahboomcar_bringup yahboomcar_bringup_R2_launch.py
-```
-
-### B. LIDAR (RPLidar A1)
-```bash
-ros2 run sllidar_ros2 sllidar_node --ros-args -p serial_port:=/dev/ttyUSB0 -p serial_baudrate:=115200 -p frame_id:=laser
-```
-
-### C. Depth Camera (Astra)
-```bash
-ros2 launch astra_camera astra.launch.xml
-```
-
-## 🎮 Tools & Visualization
-
+## 🎮 Tools & Manual Control
 *   **Teleop Control:** `ros2 run teleop_twist_keyboard teleop_twist_keyboard`
 *   **Web Visualization (ROSboard):** 
     1.  `cd /root/rosboard && ./run`

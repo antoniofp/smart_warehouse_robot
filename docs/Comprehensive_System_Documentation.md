@@ -24,7 +24,13 @@ ssh jetson@<JETSON_IP_ADDRESS>
 
 ## 2. Docker & Filesystem Architecture
 
-The ROS 2 Foxy environment is containerized to ensure hardware compatibility and environment consistency.
+The ROS 2 Foxy environment is containerized to ensure hardware compatibility and environment consistency. We use the `beautiful_snyder` container.
+
+### Managing the Container
+Run these from the Jetson (Host) terminal:
+- **Start:** `docker start beautiful_snyder`
+- **Enter:** `docker exec -it beautiful_snyder bash`
+- **Stop:** `docker stop beautiful_snyder`
 
 ### Volume Mapping (Host ↔ Container)
 The container filesystem is partially linked to the Jetson host. Changes made in linked folders persist even if the container is deleted.
@@ -45,18 +51,21 @@ You may notice a nested folder structure in the factory code. This is due to Yah
 
 ---
 
-## 3. Environment Setup & Overlays
+## 3. Environment Setup & Overlays (The 4 Layers)
 
-The system uses a **4-Layer Overlay** architecture. Each layer builds upon the previous one. In every new terminal, you must source the layers in order:
+The system uses a **4-Layer Overlay** architecture. Each layer provides specific functionality. You must source them in every new terminal:
 
-1.  **Base Layer:** Standard ROS 2 Foxy.
-    `source /opt/ros/foxy/setup.bash`
-2.  **Library Workspace:** Low-level hardware drivers (LIDAR, Camera).
-    `source /root/yahboomcar_ros2_ws/software/library_ws/install/setup.bash`
-3.  **Main Workspace:** Factory robot logic and Yahboom packages.
-    `source /root/yahboomcar_ros2_ws/yahboomcar_ws/install/setup.bash`
-4.  **Project Workspace:** Your custom warehouse navigation logic.
-    `source /root/smart_warehouse_robot/install/setup.bash`
+1.  **Base Layer (`/opt/ros/foxy/setup.bash`):**
+    - **What it provides:** Standard ROS 2 Foxy libraries (`rclcpp`, `rclpy`), common messages (`geometry_msgs`), and core tools (`ros2 cli`, `rviz2`).
+2.  **Library Workspace (`/root/yahboomcar_ros2_ws/software/library_ws/install/setup.bash`):**
+    - **What it provides:** Low-level device drivers.
+    - **Key Packages:** `sllidar_ros2` (LiDAR), `astra_camera` (Depth Camera).
+3.  **Main Workspace (`/root/yahboomcar_ros2_ws/yahboomcar_ws/install/setup.bash`):**
+    - **What it provides:** Yahboom's robot-specific logic and configuration.
+    - **Key Packages:** `yahboomcar_bringup` (Robot start scripts), `yahboomcar_description` (3D URDF models), `yahboomcar_nav` (Navigation and mapping launch files).
+4.  **Project Workspace (`/root/smart_warehouse_robot/install/setup.bash`):**
+    - **What it provides:** Your custom code and project-specific patches.
+    - **Key Packages:** Custom navigation nodes and the **patched `slam_toolbox`** (built from source to fix Jetson memory bugs).
 
 ### Persistent Hardware Configuration
 Hardware settings are managed via environment variables in `/root/.bashrc`. If you switch sensors or robots, these must be updated:
@@ -117,3 +126,15 @@ If you cannot run GUI tools like RViz over SSH:
 4.  **Filesystem Optimization:**
     *   Removed ~435MB of redundant core dumps from the root filesystem.
     *   Cleaned up accidental `/build` and `/install` folders in the container's root directory.
+
+## 7. Troubleshooting & Critical Patches
+
+### A. SLAM Toolbox Crash (Exit Code -7 / SIGBUS)
+- **Problem:** When running the default `slam_toolbox` package on Jetson Nano (ARM64), the process dies instantly. This is due to a memory alignment bug in the pre-compiled `FastRTPS` middleware and the `Ceres` solver binaries.
+- **Fix 1 (Middleware):** We switched from the default middleware to CycloneDDS. This is now permanent in `.bashrc`:
+  ```bash
+  export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+  ```
+- **Fix 2 (Source Build):** The `slam_toolbox` package was cloned into `/root/smart_warehouse_robot/src` and compiled natively on the Jetson. This ensures the binary is perfectly aligned for the local CPU. Always use the version from the Project Workspace overlay.
+
+---
