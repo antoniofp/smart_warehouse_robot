@@ -89,7 +89,17 @@ Run each of these in a separate terminal pane or tmux window:
 *   *Note: Requires 115200 baud rate for the A1 model.*
 
 ### C. Depth Camera (Orbbec Astra)
-*   **Command:** `ros2 launch astra_camera astra.launch.xml`
+The Astra camera provides two distinct streams:
+1.  **Depth/IR Stream:** `ros2 launch astra_camera astra.launch.xml` (Handled via OpenNI).
+2.  **Color (RGB) Stream:**
+    ```bash
+    ros2 run usb_cam usb_cam_node_exe --ros-args -p video_device:="/dev/video0" -p pixel_format:="yuyv"
+    ```
+
+#### Technical Rationale for RGB Camera Settings:
+*   **`video_device:="/dev/video0"`:** The Astra's RGB sensor is a standard UVC-compliant webcam device. While depth is handled by specialized drivers, the color feed appears as a standard video device.
+*   **`pixel_format:="yuyv"`:** We force YUYV because the default MJPEG compression often causes decoding bottlenecks or stability issues with the `usb_cam` driver on the Jetson Nano's architecture. YUYV provides a stable, raw stream.
+*   **Separation:** We launch RGB separately from the depth driver to avoid resource contention and because the `astra_camera` package's internal RGB handling is often less reliable than the standard `usb_cam` node for standard vision tasks (like YOLO).
 
 ---
 

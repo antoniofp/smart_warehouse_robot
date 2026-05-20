@@ -58,10 +58,17 @@ The system uses a **4-Layer Overlay** architecture. You must source these layers
 Follow these steps in separate terminals inside the Docker container.
 
 ### Step 1: Hardware Bringup
-Connects to the motors and the Lidar sensor.
+Connects to the motors, Lidar, and Camera.
 *   **Requires:** Layers 1, 2, and 3.
+
+**Base & Lidar:**
 ```bash
 ros2 launch yahboomcar_nav laser_bringup_launch.py
+```
+
+**RGB Camera (Color Feed):**
+```bash
+ros2 run usb_cam usb_cam_node_exe --ros-args -p video_device:="/dev/video0" -p pixel_format:="yuyv"
 ```
 
 ### Step 2: SLAM Mapping
