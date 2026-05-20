@@ -88,3 +88,28 @@ ros2 launch yahboomcar_description display_R2.launch.py
 
 ---
 
+## 🛠 Troubleshooting
+
+### Docker and X11 GUI Applications (e.g., RViz)
+When running ROS2 GUI applications like `rviz2` or `joint_state_publisher_gui` from within a Docker container on the Jetson Nano, you might encounter the following error:
+```
+qt.qpa.xcb: could not connect to display :0
+No protocol specified
+```
+
+**Workaround:**
+This error occurs because the Docker container does not have permission to communicate with the host's X11 server. To fix this, you need to grant local connections access to the X server from the host system.
+
+1. Open a terminal directly on the host machine (Jetson Nano) **outside** of the Docker container.
+2. Run the following command to allow local connections:
+   ```bash
+   xhost +local:root
+   ```
+   *(You should see a message saying "non-network local connections being added to access control list")*
+3. Inside the Docker container, ensure your display environment variable is set correctly before launching your ROS2 application:
+   ```bash
+   export DISPLAY=:0
+   ros2 launch yahboomcar_description display_R2.launch.py
+   ```
+> **Note:** The `xhost +local:root` command resets upon a reboot of the host machine. You will need to run it again after restarting the Jetson Nano.
+
