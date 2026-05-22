@@ -53,7 +53,19 @@ The system uses a **4-Layer Overlay** architecture. You must source these layers
 
 ---
 
-## 🚦 Quick Start Guide
+## ⚡ Automated Startup (Recommended)
+
+To quickly start all necessary nodes (ROSboard, Hardware Bringup, RGB Camera, and SLAM) with a single command:
+
+```bash
+./start_mapping.sh
+```
+
+This script handles environment sourcing, sets the correct DDS implementation, and manages the background processes for you. Press **Ctrl+C** to stop all nodes.
+
+---
+
+## 🚦 Quick Start Guide (Manual)
 
 Follow these steps in separate terminals inside the Docker container.
 
