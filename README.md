@@ -109,6 +109,14 @@ ros2 launch yahboomcar_description display_R2.launch.py
 
 ## 🛠 Troubleshooting
 
+### SLAM Map Saving Timeout
+If `ros2 run nav2_map_server map_saver_cli` fails with a timeout, it is likely due to a QoS mismatch (slam_toolbox uses `transient_local` durability).
+
+**Fix:** Add the following parameter to the command:
+```bash
+ros2 run nav2_map_server map_saver_cli -f /root/maps/my_map --ros-args -p map_subscribe_transient_local:=true
+```
+
 ### Docker and X11 GUI Applications (e.g., RViz)
 When running ROS2 GUI applications like `rviz2` or `joint_state_publisher_gui` from within a Docker container on the Jetson Nano, you might encounter the following error:
 ```

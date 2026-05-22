@@ -14,7 +14,7 @@ SLAM is sensitive to featureless environments (like symmetrical mazes). We must 
 4.  **Verify Remotely:** Monitor the map generation on **ROSboard** (`http://<ROBOT_IP>:8888`). Do not use RViz.
 5.  **Save the Map:** Once the map is visually perfect on ROSboard, save it from the terminal:
     ```bash
-    ros2 run nav2_map_server map_saver_cli -f /root/maps/final_maze
+    ros2 run nav2_map_server map_saver_cli -f /root/maps/final_maze --ros-args -p map_subscribe_transient_local:=true
     ```
 6.  **Kill SLAM:** Stop `./start_mapping.sh`. You will not use SLAM Toolbox again for the presentation.
 
