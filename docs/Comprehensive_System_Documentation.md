@@ -147,4 +147,7 @@ If you cannot run GUI tools like RViz over SSH:
   ```
 - **Fix 2 (Source Build):** The `slam_toolbox` package was cloned into `/root/smart_warehouse_robot/src` and compiled natively on the Jetson. This ensures the binary is perfectly aligned for the local CPU. Always use the version from the Project Workspace overlay.
 
+### B. Localization & Pose Accuracy
+For a detailed breakdown of how the robot calculates its real-world position using EKF and SLAM, see [SLAM_LOCALIZATION_ANALYSIS.md](./SLAM_LOCALIZATION_ANALYSIS.md). This document explains why relying solely on `/odom` is insufficient for precise warehouse tasks.
+
 ---
