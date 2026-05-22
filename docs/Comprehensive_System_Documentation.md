@@ -137,6 +137,9 @@ If you cannot run GUI tools like RViz over SSH:
     *   Removed ~435MB of redundant core dumps from the root filesystem.
     *   Cleaned up accidental `/build` and `/install` folders in the container's root directory.
 
+## 8. Available Built-in Tools and AI Packages
+The Yahboom workspace comes pre-loaded with numerous advanced packages including Nav2 (AMCL), MediaPipe (Google AI), and Lidar-tracking nodes. For a complete list of these hidden capabilities and how to use them without writing custom code, see the [YAHBOOM_WORKSPACE_AUDIT.md](./YAHBOOM_WORKSPACE_AUDIT.md).
+
 ## 7. Troubleshooting & Critical Patches
 
 ### A. SLAM Toolbox Crash (Exit Code -7 / SIGBUS)
