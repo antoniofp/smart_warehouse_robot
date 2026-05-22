@@ -13,6 +13,15 @@ source /root/smart_warehouse_robot/install/setup.bash
 export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 
 echo "----------------------------------------------------"
+echo "Cleaning up any previous ROS 2 processes..."
+pkill -f "ros2" || true
+pkill -f "Ackman_driver_R2" || true
+pkill -f "yahboom_joy_R2" || true
+pkill -f "joint_state_publisher" || true
+pkill -f "rosboard" || true
+ros2 daemon stop 2>/dev/null || true
+sleep 1
+
 echo "Initializing Smart Warehouse Robot Mapping System..."
 echo "----------------------------------------------------"
 
@@ -46,8 +55,24 @@ echo "----------------------------------------------------"
 cleanup() {
     echo ""
     echo "Shutting down all processes..."
+    # 1. Kill specific PIDs first
     kill $ROSBOARD_PID $BRINGUP_PID $CAMERA_PID $SLAM_PID 2>/dev/null
-    echo "Done."
+    
+    # 2. Forcefully kill any lingering ROS 2 nodes and Yahboom drivers
+    pkill -f "ros2"
+    pkill -f "Ackman_driver_R2"
+    pkill -f "yahboom_joy_R2"
+    pkill -f "joint_state_publisher"
+    pkill -f "robot_state_publisher"
+    pkill -f "slam_toolbox"
+    pkill -f "usb_cam_node_exe"
+    pkill -f "rosboard"
+    pkill -f "sllidar_node"
+    
+    # 3. Cleanup ROS 2 daemon
+    ros2 daemon stop 2>/dev/null
+    
+    echo "Done. All topics and nodes have been cleared."
     exit
 }
 
