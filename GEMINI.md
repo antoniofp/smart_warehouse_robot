@@ -23,6 +23,12 @@ Manage long-running nodes (like ROSboard or the camera) in the background using 
 ## SLAM & Mapping
 - **Command:** `export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp && ros2 launch slam_toolbox online_async_launch.py`
 - **Note:** Ensure `use_sim_time` is correctly set if you experience map distortion or timing issues.
+- **Saving a Map:** Once mapping is complete, DO NOT kill the SLAM node immediately. Run:
+  `ros2 run nav2_map_server map_saver_cli -f /root/maps/my_warehouse_map`
+
+## Navigation (Nav2 & AMCL)
+- **TEB Planner (Crucial for R2 Ackerman Steering):** Do NOT use the default DWA planner. Use TEB to respect the steering radius constraints.
+  `ros2 launch yahboomcar_nav navigation_teb_launch.py map:=/root/maps/my_warehouse_map.yaml`
 
 ## Visualization & Tools
 - **ROSboard:** `cd /root/rosboard && ./run` (Access at `http://<IP>:8888`)
