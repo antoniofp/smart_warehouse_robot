@@ -30,6 +30,7 @@ Manage long-running nodes (like ROSboard or the camera) in the background using 
 - **TEB Planner (Crucial for R2 Ackerman Steering):** Do NOT use the default DWA planner. Use TEB to respect the steering radius constraints.
   `ros2 launch yahboomcar_nav navigation_teb_launch.py map:=/root/maps/my_warehouse_map.yaml`
 
-## Visualization & Tools
-- **ROSboard:** `cd /root/rosboard && ./run` (Access at `http://<IP>:8888`)
-- **RViz:** `ros2 launch yahboomcar_description display_R2_launch.py` (Requires `xhost +local:root` on host)
+## Visualization & Headless Operation
+- **Presentation Constraint (NO RVIZ):** Do NOT use RViz for operation or initialization due to resource overhead and HDMI requirements. All initialization and goal setting must be done programmatically or via terminal (e.g., publishing to `/initialpose` and `/navigate_to_pose`).
+- **Remote Monitoring:** Use ROSboard for web-based remote visualization.
+  `cd /root/rosboard && ./run` (Access at `http://<IP>:8888`)

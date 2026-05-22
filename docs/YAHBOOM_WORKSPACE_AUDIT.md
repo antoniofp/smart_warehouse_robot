@@ -10,20 +10,16 @@ While the default startup scripts only launch SLAM (mapping), the workspace cont
 *   **Capabilities:** Once a map is saved, this script launches the map server, AMCL for probabilistic localization, and the DWA (Dynamic Window Approach) local planner. This is the industry standard for warehouse navigation, allowing the robot to navigate a known map without modifying it (preventing map corruption).
 
 ## 2. Artificial Intelligence and Vision
-Compiling modern AI frameworks (like PyTorch or YOLOv8) on the Jetson Nano's legacy JetPack 4.6.1 is notoriously difficult. This workspace includes pre-compiled, hardware-accelerated alternatives.
+While the workspace contains legacy pre-compiled vision packages, **our primary strategy relies on a custom YOLO deployment running natively on the Jetson Nano host GPU.**
 
-### MediaPipe (Google AI)
-**Package:** `yahboomcar_mediapipe`
-*   **Capabilities:** Real-time, lightweight machine learning for vision.
-*   **Interesting Nodes:**
-    *   `01_HandDetector.py` / `10_HandCtrl.py`: Detect hands and control the robot's movement via hand gestures.
-    *   `04_FaceMesh.py` / `07_FaceDetection.py`: Fast face detection.
-    *   `02_PoseDetector.py`: Full body pose estimation.
-*   **Why it matters:** It provides immediate AI capabilities without the dependency hell of custom YOLO installations.
+### Custom YOLO (Primary Strategy)
+*   **Location:** Outside the container, natively on the host GPU.
+*   **Capabilities:** Custom detection of specific warehouse signs (Stop, Parking, Detour) which is impossible with the pre-compiled generic nodes in the workspace.
+*   **Integration:** The YOLO Python script will act as the "Brain," processing the video feed and publishing Nav2 commands (`/navigate_to_pose`) based on the recognized custom signs.
 
-### KCF Object Tracking
-**Package:** `yahboomcar_KCFTracker`
-*   **Capabilities:** Kernelized Correlation Filters for object tracking. You select an object in the camera feed, and the robot will autonomously rotate and drive to keep the object centered in its vision.
+### MediaPipe & KCF Tracker (Deprecated/Experimental)
+*   **Packages:** `yahboomcar_mediapipe`, `yahboomcar_KCFTracker`
+*   **Note:** These packages contain pre-compiled Google AI and OpenCV trackers for hands, faces, and basic objects. **They are not useful for the final presentation** as they cannot detect custom warehouse signs. They remain in the workspace strictly as experimental artifacts or fallbacks for generic object tracking.
 
 ### Color and Line Following
 **Package:** `yahboomcar_visual` / `yahboomcar_linefollow`
