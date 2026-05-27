@@ -31,6 +31,10 @@ Manage long-running nodes (like ROSboard or the camera) in the background using 
   `ros2 launch yahboomcar_nav navigation_teb_launch.py map:=/root/maps/my_warehouse_map.yaml`
 
 ## Visualization & Headless Operation
-- **Presentation Constraint (NO RVIZ):** Do NOT use RViz for operation or initialization due to resource overhead and HDMI requirements. All initialization and goal setting must be done programmatically or via terminal (e.g., publishing to `/initialpose` and `/navigate_to_pose`).
+- **Presentation Constraint (NO RVIZ):** Do NOT use RViz for operation or initialization due to resource overhead and HDMI requirements. All initialization and goal setting must be done programmatically or via terminal:
+  - **Set Initial Pose:**
+    `ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped "{header: {frame_id: 'map'}, pose: {pose: {position: {x: 0.0, y: 0.0, z: 0.0}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}}"`
+  - **Navigate to Goal:**
+    `ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose "{pose: {header: {frame_id: 'map'}, pose: {position: {x: 2.0, y: 0.0, z: 0.0}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}}"`
 - **Remote Monitoring:** Use ROSboard for web-based remote visualization.
   `cd /root/rosboard && ./run` (Access at `http://<IP>:8888`)

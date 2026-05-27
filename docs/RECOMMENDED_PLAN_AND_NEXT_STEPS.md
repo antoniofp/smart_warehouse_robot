@@ -31,12 +31,12 @@ For the presentation, the robot must localize itself without a monitor or RViz. 
 2.  **Headless Initial Pose Initialization:**
     Since we cannot use the RViz "2D Pose Estimate" button, we must define the starting point via the terminal. Place the robot in an agreed-upon "Starting Zone" in the physical maze, then publish its exact coordinates on the map:
     ```bash
-    ros2 topic pub -1 /initialpose geometry_msgs/msg/PoseWithCovarianceStamped "{header: {frame_id: 'map'}, pose: {pose: {position: {x: 0.0, y: 0.0, z: 0.0}, orientation: {w: 1.0}}}}"
+    ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped "{header: {frame_id: 'map'}, pose: {pose: {position: {x: 0.0, y: 0.0, z: 0.0}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}}"
     ```
-    *(Note: You will need to determine the exact X, Y, and quaternion W values of your physical starting box based on the generated map's origin).*
+    *(Note: You will need to determine the exact X, Y, and quaternion values of your physical starting box based on the generated map's origin).*
 3.  **Headless Goal Testing:** Test the TEB planner by sending a destination coordinate via terminal to ensure it navigates without crashing:
     ```bash
-    ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose "{pose: {header: {frame_id: 'map'}, pose: {position: {x: 1.5, y: 2.0}, orientation: {w: 1.0}}}}"
+    ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose "{pose: {header: {frame_id: 'map'}, pose: {position: {x: 2.0, y: 0.0, z: 0.0}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}}"
     ```
 
 ---
