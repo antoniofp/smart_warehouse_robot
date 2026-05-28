@@ -124,16 +124,40 @@ If you cannot run GUI tools like RViz over SSH:
 
 ---
 
-## 6. System History & Patches Applied
+## 6. Autonomous Navigation (Nav2)
 
-1.  **USB Device Permissions (Host OS):**
+The project implements a robust navigation stack tailored for the Rosmaster R2's Ackerman steering.
+
+### A. Navigation Logic
+We use **Nav2** with the following custom configurations:
+- **TEB Local Planner:** Specifically tuned for the R2's turning radius and velocity constraints.
+- **Custom Behavior Tree (`minimal_bt.xml`):** Implements a recovery strategy that clears costmaps when the robot is stuck, improving reliability in dynamic warehouse environments.
+- **AMCL Localization:** Used for global localization against a pre-built static map.
+
+### B. Map Management
+High-quality maps are stored within the `r2_nav` package to ensure they are version-controlled and easily accessible by the launch files.
+- **Location:** `src/r2_nav/maps/`
+- **Default Map:** `mapa_perfecto`
+
+### C. Execution
+To launch the full navigation stack:
+```bash
+./start_navigation.sh
+```
+This script automates the hardware bringup, camera feed, and Nav2 stack with the correct parameters.
+
+## 7. System History & Patches Applied
+
+1.  **Map Relocation:** Moved static maps from the root directory to `src/r2_nav/maps/` for better package organization.
+2.  **Behavior Tree Optimization:** Replaced the default Nav2 behavior tree with a streamlined version (`minimal_bt.xml`) that includes global costmap clearing on failure.
+3.  **USB Device Permissions (Host OS):**
     *   Added udev rule at `/etc/udev/rules.d/56-orbbec-usb.rules` for Astra Camera (Vendor ID 2bc5).
     *   User Permissions: Executed `sudo chmod 666 /dev/ttyUSB*` to allow Docker non-root access to serial ports.
-2.  **Boot Order Fix:** Modified `/boot/extlinux/extlinux.conf` to prioritize the SD Card over the SSD.
-3.  **STM32 Firmware Bootloop (Hardware):**
+4.  **Boot Order Fix:** Modified `/boot/extlinux/extlinux.conf` to prioritize the SD Card over the SSD.
+5.  **STM32 Firmware Bootloop (Hardware):**
     *   **Problem:** Original firmware crashed looking for MPU9250 IMU.
     *   **Fix:** Flashed V3.5.1 firmware via Windows mcuisp tool to support the ICM-20948 IMU found on V2.0 expansion boards.
-4.  **Filesystem Optimization:**
+6.  **Filesystem Optimization:**
     *   Removed ~435MB of redundant core dumps from the root filesystem.
     *   Cleaned up accidental `/build` and `/install` folders in the container's root directory.
 

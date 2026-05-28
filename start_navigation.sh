@@ -47,7 +47,7 @@ CAMERA_PID=$!
 
 # 7. Start Nav2 Bringup (with AMCL localization and custom TEB controller)
 echo "[5/5] Starting Nav2 Navigation (AMCL + TEB)..."
-ros2 launch r2_nav bringup_launch.py > /dev/null 2>&1 &
+ros2 launch r2_nav bringup_launch.py params_file:=/root/smart_warehouse_robot/src/r2_nav/config/nav2_params.yaml default_bt_xml_filename:=/root/smart_warehouse_robot/minimal_bt.xml > /dev/null 2>&1 &
 NAV_PID=$!
 
 echo "----------------------------------------------------"

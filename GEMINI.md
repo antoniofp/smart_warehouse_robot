@@ -28,7 +28,12 @@ Manage long-running nodes (like ROSboard or the camera) in the background using 
 
 ## Navigation (Nav2 & SLAM Localization)
 - **TEB Planner (Crucial for R2 Ackerman Steering):** Do NOT use the default DWA planner. Use TEB to respect the steering radius constraints.
-- **Localization:** We use SLAM Toolbox in Localization mode. Launch with `./start_localization.sh`.
+- **Custom Behavior Tree:** We use `minimal_bt.xml` which includes a `RecoveryNode` and `ClearEntireCostmap` to handle obstacles more robustly.
+- **Localization:** We use SLAM Toolbox in Localization mode.
+- **Startup Scripts:**
+  - `./start_localization.sh`: Starts SLAM Toolbox in localization mode using the saved map.
+  - `./start_navigation.sh`: Full navigation stack including AMCL localization, Nav2 with TEB planner, and custom Behavior Tree.
+- **Map Location:** Perfect maps are stored in `src/r2_nav/maps/`. Update the `map_file_name` in `src/slam_toolbox/config/mapper_params_localization.yaml` if you create a new map.
 
 ## Visualization & Headless Operation
 - **Presentation Constraint (NO RVIZ):** Do NOT use RViz for operation or initialization due to resource overhead and HDMI requirements. 

@@ -62,9 +62,14 @@ To quickly start all necessary nodes (ROSboard, Foxglove, Hardware Bringup, RGB 
 ./start_mapping.sh
 ```
 
-**For Localization (Navigating a known map):**
+**For Localization (Navigating a known map with SLAM Toolbox):**
 ```bash
 ./start_localization.sh
+```
+
+**For Full Autonomous Navigation (AMCL + Nav2 + TEB):**
+```bash
+./start_navigation.sh
 ```
 
 These scripts handle environment sourcing, set the correct DDS implementation, and manage the background processes for you. Press **Ctrl+C** to stop all nodes.
