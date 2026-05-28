@@ -55,3 +55,17 @@ qtcreator-*
 CATKIN_IGNORE
 
 # Temporary analysis files
+
+# YOLO and temporary files
+camera.log
+core
+temp_map.jpeg
+test_frame.jpg
+*.pt
+*.whl
+venv_yolo/
+test_yolo.py
+yolo_inference_host.py
+capture_frame.py
+runs/
+temp_host-docker_files/

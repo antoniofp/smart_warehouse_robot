@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Consolidate all startup commands for the Smart Warehouse Robot Localization
-# Author: Gemini CLI
+# Consolidate all startup commands for the Smart Warehouse Robot Navigation
+# Author: Antigravity AI
 
 # 1. Source all ROS 2 environments in order
 source /opt/ros/foxy/setup.bash
@@ -9,7 +9,7 @@ source /root/yahboomcar_ros2_ws/software/library_ws/install/setup.bash
 source /root/yahboomcar_ros2_ws/yahboomcar_ws/install/setup.bash
 source /root/smart_warehouse_robot/install/setup.bash
 
-# 2. Critical: Use CycloneDDS for SLAM stability on Jetson Nano
+# 2. Critical: Use CycloneDDS for SLAM/Nav stability on Jetson Nano
 export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 
 echo "----------------------------------------------------"
@@ -22,7 +22,7 @@ pkill -f "rosboard" || true
 ros2 daemon stop 2>/dev/null || true
 sleep 1
 
-echo "Initializing Smart Warehouse Robot Localization System..."
+echo "Initializing Smart Warehouse Robot Navigation System (AMCL + TEB)..."
 echo "----------------------------------------------------"
 
 # 3. Start ROSboard (for visualization and web control)
@@ -45,13 +45,13 @@ echo "[4/5] Starting RGB Camera Node..."
 ros2 run usb_cam usb_cam_node_exe --ros-args -p video_device:="/dev/video0" -p pixel_format:="yuyv" > /dev/null 2>&1 &
 CAMERA_PID=$!
 
-# 7. Start SLAM Toolbox (Localization Mode with your Perfect Map)
-echo "[5/5] Starting SLAM Toolbox (Localization Mode)..."
-ros2 launch slam_toolbox localization_launch.py > /dev/null 2>&1 &
-SLAM_PID=$!
+# 7. Start Nav2 Bringup (with AMCL localization and custom TEB controller)
+echo "[5/5] Starting Nav2 Navigation (AMCL + TEB)..."
+ros2 launch r2_nav bringup_launch.py > /dev/null 2>&1 &
+NAV_PID=$!
 
 echo "----------------------------------------------------"
-echo "All localization systems are running."
+echo "All navigation systems are running."
 echo "Access ROSboard at: http://localhost:8888"
 echo "Access Foxglove via: ws://localhost:9090 (or robot IP)"
 echo "Press Ctrl+C to shut down all nodes safely."
@@ -61,7 +61,7 @@ echo "----------------------------------------------------"
 cleanup() {
     echo ""
     echo "Shutting down all processes..."
-    kill $ROSBOARD_PID $FOXGLOVE_PID $BRINGUP_PID $CAMERA_PID $SLAM_PID 2>/dev/null
+    kill $ROSBOARD_PID $FOXGLOVE_PID $BRINGUP_PID $CAMERA_PID $NAV_PID 2>/dev/null
 
     pkill -f "ros2"
     pkill -f "rosbridge"
@@ -73,6 +73,7 @@ cleanup() {
     pkill -f "usb_cam_node_exe"
     pkill -f "rosboard"
     pkill -f "sllidar_node"
+    pkill -f "lifecycle_manager"
 
     ros2 daemon stop 2>/dev/null
     echo "Done. All topics and nodes have been cleared."
