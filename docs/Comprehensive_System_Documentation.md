@@ -131,7 +131,7 @@ The project implements a robust navigation stack tailored for the Rosmaster R2's
 ### A. Navigation Logic
 We use **Nav2** with the following custom configurations:
 - **TEB Local Planner:** Specifically tuned for the R2's turning radius and velocity constraints.
-- **Custom Behavior Tree (`minimal_bt.xml`):** Implements a recovery strategy that clears costmaps when the robot is stuck, improving reliability in dynamic warehouse environments.
+- **Custom Behavior Tree (`src/r2_nav/behavior_trees/minimal_bt.xml`):** Implements a recovery strategy that clears costmaps when the robot is stuck, improving reliability in dynamic warehouse environments.
 - **AMCL Localization:** Used for global localization against a pre-built static map.
 
 ### B. Map Management
@@ -149,7 +149,7 @@ This script automates the hardware bringup, camera feed, and Nav2 stack with the
 ## 7. System History & Patches Applied
 
 1.  **Map Relocation:** Moved static maps from the root directory to `src/r2_nav/maps/` for better package organization.
-2.  **Behavior Tree Optimization:** Replaced the default Nav2 behavior tree with a streamlined version (`minimal_bt.xml`) that includes global costmap clearing on failure.
+2.  **Behavior Tree Optimization:** Replaced the default Nav2 behavior tree with a streamlined version (`src/r2_nav/behavior_trees/minimal_bt.xml`) that includes global costmap clearing on failure.
 3.  **USB Device Permissions (Host OS):**
     *   Added udev rule at `/etc/udev/rules.d/56-orbbec-usb.rules` for Astra Camera (Vendor ID 2bc5).
     *   User Permissions: Executed `sudo chmod 666 /dev/ttyUSB*` to allow Docker non-root access to serial ports.

@@ -11,6 +11,7 @@ source /root/smart_warehouse_robot/install/setup.bash
 
 # 2. Critical: Use CycloneDDS for SLAM stability on Jetson Nano
 export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+export ROS_DOMAIN_ID=32
 
 echo "----------------------------------------------------"
 echo "Cleaning up any previous ROS 2 processes..."
