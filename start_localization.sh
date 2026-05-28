@@ -26,33 +26,39 @@ echo "Initializing Smart Warehouse Robot Localization System..."
 echo "----------------------------------------------------"
 
 # 3. Start ROSboard (for visualization and web control)
-echo "[1/4] Starting ROSboard..."
+echo "[1/6] Starting ROSboard..."
 cd /root/rosboard && ./run > /dev/null 2>&1 &
 ROSBOARD_PID=$!
 
-# 4. Start Hardware Bringup (Chassis + Lidar)
-echo "[2/4] Starting Hardware Bringup (Laser + Base)..."
+# 4. Start Foxglove Bridge (for modern web-based telemetry)
+echo "[2/6] Starting Foxglove Bridge..."
+ros2 launch rosbridge_server rosbridge_websocket_launch.xml > /dev/null 2>&1 &
+FOXGLOVE_PID=$!
+
+# 5. Start Hardware Bringup (Chassis + Lidar)
+echo "[3/6] Starting Hardware Bringup (Laser + Base)..."
 ros2 launch yahboomcar_nav laser_bringup_launch.py > /dev/null 2>&1 &
 BRINGUP_PID=$!
 
-# 5. Start RGB Camera Feed
-echo "[3/4] Starting RGB Camera Node..."
+# 6. Start RGB Camera Feed
+echo "[4/6] Starting RGB Camera Node..."
 ros2 run usb_cam usb_cam_node_exe --ros-args -p video_device:="/dev/video0" -p pixel_format:="yuyv" > /dev/null 2>&1 &
 CAMERA_PID=$!
 
-# 6. Start SLAM Toolbox (Localization Mode with your Perfect Map)
-echo "[4/4] Starting SLAM Toolbox (Localization Mode)..."
+# 7. Start SLAM Toolbox (Localization Mode with your Perfect Map)
+echo "[5/6] Starting SLAM Toolbox (Localization Mode)..."
 ros2 launch slam_toolbox localization_launch.py > /dev/null 2>&1 &
 SLAM_PID=$!
 
-# 7. Start TF to Pose Bridge (to see /pose topic)
-echo "[5/5] Starting TF to Pose Bridge..."
+# 8. Start TF to Pose Bridge (to see /pose topic)
+echo "[6/6] Starting TF to Pose Bridge..."
 ros2 run maze_nav tf_to_pose > /dev/null 2>&1 &
 TF2POSE_PID=$!
 
 echo "----------------------------------------------------"
 echo "All localization systems are running."
-echo "Access ROSboard at: http://localhost:8888 (or robot IP)"
+echo "Access ROSboard at: http://localhost:8888"
+echo "Access Foxglove via: ws://localhost:9090 (or robot IP)"
 echo "Press Ctrl+C to shut down all nodes safely."
 echo "----------------------------------------------------"
 
@@ -60,9 +66,10 @@ echo "----------------------------------------------------"
 cleanup() {
     echo ""
     echo "Shutting down all processes..."
-    kill $ROSBOARD_PID $BRINGUP_PID $CAMERA_PID $SLAM_PID $TF2POSE_PID 2>/dev/null
+    kill $ROSBOARD_PID $FOXGLOVE_PID $BRINGUP_PID $CAMERA_PID $SLAM_PID $TF2POSE_PID 2>/dev/null
     
     pkill -f "ros2"
+    pkill -f "rosbridge"
     pkill -f "Ackman_driver_R2"
     pkill -f "yahboom_joy_R2"
     pkill -f "joint_state_publisher"

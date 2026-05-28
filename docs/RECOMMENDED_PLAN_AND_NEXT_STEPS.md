@@ -20,20 +20,20 @@ SLAM is sensitive to featureless environments (like symmetrical mazes). We must 
 
 ---
 
-## Phase 2: Headless Localization & Navigation (AMCL + TEB)
-For the presentation, the robot must localize itself without a monitor or RViz. We will use the static map, AMCL for localization, and the TEB planner for Ackerman steering.
+## Phase 2: Headless Localization & Navigation (SLAM Localization + TEB)
+For the presentation, the robot must localize itself without a monitor or RViz. We will use the static map, **SLAM Toolbox in Localization Mode**, and the TEB planner for Ackerman steering.
 
 **Execution Steps:**
-1.  **Launch Nav2 Stack:**
-    ```bash
-    ros2 launch yahboomcar_nav navigation_teb_launch.py map:=/root/maps/final_maze.yaml
+1.  **Configure Initial Pose:**
+    Before launching, open `src/slam_toolbox/config/mapper_params_localization.yaml` and update the `map_start_pose` parameter:
+    ```yaml
+    map_start_pose: [x_coord, y_coord, theta_yaw]
     ```
-2.  **Headless Initial Pose Initialization:**
-    Since we cannot use the RViz "2D Pose Estimate" button, we must define the starting point via the terminal. Place the robot in an agreed-upon "Starting Zone" in the physical maze, then publish its exact coordinates on the map:
+    This ensures the robot starts perfectly aligned with its physical position in the maze.
+2.  **Launch Localization Stack:**
     ```bash
-    ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped "{header: {frame_id: 'map'}, pose: {pose: {position: {x: 0.0, y: 0.0, z: 0.0}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}}"
+    ./start_localization.sh
     ```
-    *(Note: You will need to determine the exact X, Y, and quaternion values of your physical starting box based on the generated map's origin).*
 3.  **Headless Goal Testing:** Test the TEB planner by sending a destination coordinate via terminal to ensure it navigates without crashing:
     ```bash
     ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose "{pose: {header: {frame_id: 'map'}, pose: {position: {x: 2.0, y: 0.0, z: 0.0}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}}"
@@ -59,4 +59,4 @@ If the path is defined, but signs dictate behavior (e.g., a "Stop" sign or "Deto
     *   If YOLO sees "Stop", send a 0 velocity command to `/cmd_vel` or pause the Nav2 action.
     *   If YOLO sees "Parking Zone", execute the docking maneuver.
 
-**Key Architecture Takeaway:** Your custom YOLO Python script is the "Brain." It watches the camera and acts as the master commander, sending action goals to Nav2. Nav2 (AMCL + TEB) is the "Spinal Cord," ensuring the robot doesn't hit walls while trying to obey the Brain.
+**Key Architecture Takeaway:** Your custom YOLO Python script is the "Brain." It watches the camera and acts as the master commander, sending action goals to Nav2. Nav2 (**SLAM Localization** + TEB) is the "Spinal Cord," ensuring the robot doesn't hit walls while trying to obey the Brain.

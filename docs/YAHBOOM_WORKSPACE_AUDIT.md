@@ -2,12 +2,12 @@
 
 During a deep audit of the `/root/yahboomcar_ros2_ws` container workspace, we discovered several advanced packages and nodes provided by Yahboom. These tools can significantly accelerate development by bypassing the need to compile complex AI or navigation stacks from scratch.
 
-## 1. Navigation and Localization (AMCL)
+## 1. Navigation and Localization (AMCL vs SLAM Toolbox)
 **Package:** `yahboomcar_nav`
 
-While the default startup scripts only launch SLAM (mapping), the workspace contains full configurations for **Nav2** and **AMCL** (Monte Carlo Localization).
-*   **Key File:** `launch/navigation_dwa_launch.py`
-*   **Capabilities:** Once a map is saved, this script launches the map server, AMCL for probabilistic localization, and the DWA (Dynamic Window Approach) local planner. This is the industry standard for warehouse navigation, allowing the robot to navigate a known map without modifying it (preventing map corruption).
+While the workspace contains full configurations for **Nav2** and **AMCL** (Monte Carlo Localization), **we have migrated to SLAM Toolbox Localization Mode** for our primary strategy.
+*   **AMCL Capabilities:** Once a map is saved, the `yahboomcar_nav` scripts launch the map server, AMCL for probabilistic localization, and the DWA (Dynamic Window Approach) local planner.
+*   **Our Switch:** We use SLAM Toolbox Localization instead of AMCL because it provides better stability and easier initial pose configuration (via YAML) when working with the "Perfect Map." We also use the **TEB Planner** instead of DWA to support the Ackerman steering of the R2.
 
 ## 2. Artificial Intelligence and Vision
 While the workspace contains legacy pre-compiled vision packages, **our primary strategy relies on a custom YOLO deployment running natively on the Jetson Nano host GPU.**

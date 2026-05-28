@@ -138,7 +138,7 @@ If you cannot run GUI tools like RViz over SSH:
     *   Cleaned up accidental `/build` and `/install` folders in the container's root directory.
 
 ## 8. Available Built-in Tools and AI Packages
-The Yahboom workspace comes pre-loaded with numerous advanced packages including Nav2 (AMCL), MediaPipe (Google AI), and Lidar-tracking nodes. For a complete list of these hidden capabilities and how to use them without writing custom code, see the [YAHBOOM_WORKSPACE_AUDIT.md](./YAHBOOM_WORKSPACE_AUDIT.md).
+The Yahboom workspace comes pre-loaded with numerous advanced packages including Nav2 (**SLAM Localization**), MediaPipe (Google AI), and Lidar-tracking nodes. For a complete list of these hidden capabilities and how to use them without writing custom code, see the [YAHBOOM_WORKSPACE_AUDIT.md](./YAHBOOM_WORKSPACE_AUDIT.md).
 
 ## 7. Troubleshooting & Critical Patches
 

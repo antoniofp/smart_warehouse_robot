@@ -55,13 +55,19 @@ The system uses a **4-Layer Overlay** architecture. You must source these layers
 
 ## ⚡ Automated Startup (Recommended)
 
-To quickly start all necessary nodes (ROSboard, Hardware Bringup, RGB Camera, and SLAM) with a single command:
+To quickly start all necessary nodes (ROSboard, Foxglove, Hardware Bringup, RGB Camera, and SLAM) with a single command:
 
+**For Mapping (Building a new map):**
 ```bash
 ./start_mapping.sh
 ```
 
-This script handles environment sourcing, sets the correct DDS implementation, and manages the background processes for you. Press **Ctrl+C** to stop all nodes.
+**For Localization (Navigating a known map):**
+```bash
+./start_localization.sh
+```
+
+These scripts handle environment sourcing, set the correct DDS implementation, and manage the background processes for you. Press **Ctrl+C** to stop all nodes.
 
 ---
 
@@ -83,13 +89,21 @@ ros2 launch yahboomcar_nav laser_bringup_launch.py
 ros2 run usb_cam usb_cam_node_exe --ros-args -p video_device:="/dev/video0" -p pixel_format:="yuyv"
 ```
 
-### Step 2: SLAM Mapping
-Starts the mapping engine to build a 2D floor plan.
+### Step 2: SLAM Mapping OR Localization
+Starts the mapping engine to build a 2D floor plan, or localization mode to navigate one.
 *   **Requires:** Layers 1, 2, 3, and 4.
 *   **Note:** We use `CycloneDDS` to prevent memory crashes on the Jetson.
+
+**Mapping:**
 ```bash
 export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 ros2 launch slam_toolbox online_async_launch.py
+```
+
+**Localization:**
+```bash
+export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+ros2 launch slam_toolbox localization_launch.py
 ```
 
 ### Step 3: Visualization (RViz)
@@ -104,6 +118,10 @@ ros2 launch yahboomcar_description display_R2.launch.py
 *   **Web Visualization (ROSboard):** 
     1.  `cd /root/rosboard && ./run`
     2.  Access via: `http://<JETSON_IP_ADDRESS>:8888`
+*   **Modern Web UI (Foxglove):**
+    1. `ros2 launch rosbridge_server rosbridge_websocket_launch.xml`
+    2. Access via: `ws://<JETSON_IP_ADDRESS>:9090` in the Foxglove app.
+*   **Initial Pose (SLAM Localization):** Update `map_start_pose` in `src/slam_toolbox/config/mapper_params_localization.yaml` before launching to ensure the pose transform is correct.
 
 ---
 

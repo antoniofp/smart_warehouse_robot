@@ -26,15 +26,15 @@ Manage long-running nodes (like ROSboard or the camera) in the background using 
 - **Saving a Map:** Once mapping is complete, DO NOT kill the SLAM node immediately. Run:
   `ros2 run nav2_map_server map_saver_cli -f /root/maps/my_warehouse_map --ros-args -p map_subscribe_transient_local:=true`
 
-## Navigation (Nav2 & AMCL)
+## Navigation (Nav2 & SLAM Localization)
 - **TEB Planner (Crucial for R2 Ackerman Steering):** Do NOT use the default DWA planner. Use TEB to respect the steering radius constraints.
-  `ros2 launch yahboomcar_nav navigation_teb_launch.py map:=/root/maps/my_warehouse_map.yaml`
+- **Localization:** We use SLAM Toolbox in Localization mode. Launch with `./start_localization.sh`.
 
 ## Visualization & Headless Operation
-- **Presentation Constraint (NO RVIZ):** Do NOT use RViz for operation or initialization due to resource overhead and HDMI requirements. All initialization and goal setting must be done programmatically or via terminal:
-  - **Set Initial Pose:**
-    `ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped "{header: {frame_id: 'map'}, pose: {pose: {position: {x: 0.0, y: 0.0, z: 0.0}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}}"`
-  - **Navigate to Goal:**
-    `ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose "{pose: {header: {frame_id: 'map'}, pose: {position: {x: 2.0, y: 0.0, z: 0.0}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}}"`
-- **Remote Monitoring:** Use ROSboard for web-based remote visualization.
-  `cd /root/rosboard && ./run` (Access at `http://<IP>:8888`)
+- **Presentation Constraint (NO RVIZ):** Do NOT use RViz for operation or initialization due to resource overhead and HDMI requirements. 
+- **Remote Monitoring:**
+  - **ROSboard:** Access at `http://<IP>:8888`
+  - **Foxglove:** Access at `ws://<IP>:9090`
+- **Initial Pose:**
+  - Do NOT publish to `/initialpose` at runtime as it can corrupt the SLAM scan matching.
+  - **Correct Method:** Edit the `map_start_pose` parameter in `src/slam_toolbox/config/mapper_params_localization.yaml` before launching the localization script.
