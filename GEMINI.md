@@ -3,6 +3,40 @@
 ## General Workflows
 - **Always suggest a `git push`** after making changes to the codebase and committing them.
 
+## AI Remote Development & Synchronization (SSH)
+
+This workspace uses a remote setup where the AI agent (or user) runs on a fast host PC and controls the Jetson remotely over SSH.
+
+### 1. Synchronization at Start
+- **Frequent Pulling:** Pull changes frequently on all machines to prevent drift.
+- **Initial Sync Verification:** At the start of every session, the AI agent must run `git pull` on both the host PC and inside the Jetson Docker container, and verify that their commit hashes match. If there is a mismatch, warn the user.
+- **Handling Local Changes during Pull:**
+  - If there are uncommitted changes on the Jetson container that do not conflict, pull normally.
+  - If a merge conflict would occur, use `git stash` to temporarily shelf the changes, run `git pull`, and then `git stash pop`.
+  - If conflicts arise after popping the stash, the AI must ask the user which changes should overwrite what (usually favoring the latest changes) and resolve them accordingly.
+
+### 2. Development Workflows
+- **Quick Tests / Script Prototyping:**
+  - For small edits, quick debugging, or immediate script testing, write/edit files and run commands directly on the Jetson via SSH.
+- **Deep Development Sessions:**
+  - For writing larger features, refactoring, or modifying multiple files, edit the local clone on the host PC to take advantage of faster local file editing.
+
+### 3. Docker & Git Permissions
+- Git operations on the Jetson **must only** be executed inside the `beautiful_snyder` Docker container (which runs as `root` and has GitHub credentials set up) to avoid permission errors on the host.
+  - *Example:* `ssh jetson-desktop "docker exec beautiful_snyder bash -c 'cd /root/smart_warehouse_robot && git pull'"`
+
+### 4. Porting and Pushing Changes
+When saving working changes, the AI should choose the most efficient workflow:
+- **Files Outside the Repo:** If changes were made to files *outside* the repository on the Jetson (e.g. `.bashrc` or global system configs), **do not** attempt to push them to git. Instead, document these changes in `README.md` or `GEMINI.md` if they are relevant to the robot's setup.
+- **Scenario A (Mostly Host Changes):** If most repository modifications were made in the host clone with only minor SSH tweaks on the Jetson:
+  1. Port the Jetson repository tweaks back to the host clone.
+  2. Commit and push from the host PC.
+  3. Pull inside the Jetson container.
+- **Scenario B (Mostly Jetson Changes):** If most repository modifications were made directly on the Jetson via SSH:
+  1. Commit and push directly from inside the Jetson container.
+  2. Pull the changes to the host clone.
+  3. Merge and push any remaining host-side changes.
+
 ## Automated Startup
 - **Mapping Script:** `./start_mapping.sh` (Starts ROSboard, Bringup, Camera, and SLAM with CycloneDDS).
 
