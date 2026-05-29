@@ -124,40 +124,16 @@ If you cannot run GUI tools like RViz over SSH:
 
 ---
 
-## 6. Autonomous Navigation (Nav2)
+## 6. System History & Patches Applied
 
-The project implements a robust navigation stack tailored for the Rosmaster R2's Ackerman steering.
-
-### A. Navigation Logic
-We use **Nav2** with the following custom configurations:
-- **TEB Local Planner:** Specifically tuned for the R2's turning radius and velocity constraints.
-- **Custom Behavior Tree (`src/r2_nav/behavior_trees/minimal_bt.xml`):** Implements a recovery strategy that clears costmaps when the robot is stuck, improving reliability in dynamic warehouse environments.
-- **AMCL Localization:** Used for global localization against a pre-built static map.
-
-### B. Map Management
-High-quality maps are stored within the `r2_nav` package to ensure they are version-controlled and easily accessible by the launch files.
-- **Location:** `src/r2_nav/maps/`
-- **Default Map:** `mapa_perfecto`
-
-### C. Execution
-To launch the full navigation stack:
-```bash
-./start_navigation.sh
-```
-This script automates the hardware bringup, camera feed, and Nav2 stack with the correct parameters.
-
-## 7. System History & Patches Applied
-
-1.  **Map Relocation:** Moved static maps from the root directory to `src/r2_nav/maps/` for better package organization.
-2.  **Behavior Tree Optimization:** Replaced the default Nav2 behavior tree with a streamlined version (`src/r2_nav/behavior_trees/minimal_bt.xml`) that includes global costmap clearing on failure.
-3.  **USB Device Permissions (Host OS):**
+1.  **USB Device Permissions (Host OS):**
     *   Added udev rule at `/etc/udev/rules.d/56-orbbec-usb.rules` for Astra Camera (Vendor ID 2bc5).
     *   User Permissions: Executed `sudo chmod 666 /dev/ttyUSB*` to allow Docker non-root access to serial ports.
-4.  **Boot Order Fix:** Modified `/boot/extlinux/extlinux.conf` to prioritize the SD Card over the SSD.
-5.  **STM32 Firmware Bootloop (Hardware):**
+2.  **Boot Order Fix:** Modified `/boot/extlinux/extlinux.conf` to prioritize the SD Card over the SSD.
+3.  **STM32 Firmware Bootloop (Hardware):**
     *   **Problem:** Original firmware crashed looking for MPU9250 IMU.
     *   **Fix:** Flashed V3.5.1 firmware via Windows mcuisp tool to support the ICM-20948 IMU found on V2.0 expansion boards.
-6.  **Filesystem Optimization:**
+4.  **Filesystem Optimization:**
     *   Removed ~435MB of redundant core dumps from the root filesystem.
     *   Cleaned up accidental `/build` and `/install` folders in the container's root directory.
 
@@ -176,5 +152,22 @@ The Yahboom workspace comes pre-loaded with numerous advanced packages including
 
 ### B. Localization & Pose Accuracy
 For a detailed breakdown of how the robot calculates its real-world position using EKF and SLAM, see [SLAM_LOCALIZATION_ANALYSIS.md](./SLAM_LOCALIZATION_ANALYSIS.md). This document explains why relying solely on `/odom` is insufficient for precise warehouse tasks.
+
+### C. Regulated Pure Pursuit (RPP) Controller Transition
+- **Problem:** Timed Elastic Band (TEB) is a highly CPU-intensive local planner that solves a non-linear optimization problem (using `g2o`) in real-time. On the Jetson Nano, launching SLAM, sensors, cameras, websockets, and TEB together saturates the CPU at 100%. This causes control loop latency, causing Nav2 to lose synchrony and abort goals (making the robot unresponsive to subsequent commands).
+- **Fix:** Switched the local controller from TEB to **Regulated Pure Pursuit (RPP)**. RPP is a geometric path-following controller that computes steering angles by finding a lookahead point on the path. It runs at near-zero CPU overhead (~0.1%), has native velocity regulation for curvature and obstacle proximity (ideal for the Rosmaster R2 Ackermann chassis), and prevents goal-end oscillations.
+
+### D. ROS 2 Foxy Costmap Footprint YAML Parser Bug
+- **Problem:** Sourcing the Nav2 stack in Foxy triggers the `RewrittenYaml` launch utility, which parses parameters using Python and writes a temporary YAML in `/tmp/tmp*`. PyYAML's dumping heuristics dump nested lists (like `footprint: [[-0.14, -0.11], ...]`) as block-style sequences (`- - -0.14`). ROS 2 Foxy's strict C++ YAML parser (`rcl_yaml_param_parser`) fails to parse block-style nested sequences, instantly crashing `amcl`, `map_server`, and costmap nodes on startup with:
+  `failed to initialize rcl: Couldn't parse params file: ... Error: Sequences cannot be key at line 135`
+- **Fix:** Enclosed the footprint array inside double quotes:
+  `footprint: "[[-0.14, -0.11], [-0.14, 0.11], [0.16, 0.11], [0.16, -0.11]]"`
+  This forces the Python parser to treat it as a single string. It is dumped cleanly as a string, which the Costmap node successfully interprets internally, and Foxy's C++ parser remains perfectly stable.
+
+### E. Unified Navigation & Goal-Sending Utility Scripts
+To simplify command-line operation, we created a suite of unified scripts in `/root/smart_warehouse_robot`:
+1.  **`start_navigation.sh [X] [Y] [YAW_DEG]`**: Launches all nodes (ROSboard, Foxglove, Lidar, Base, Camera, and Nav2), redirects Nav2 logs to `/root/smart_warehouse_robot/log/nav2.log` to prevent terminal clutter, and automatically publishes the initial pose once AMCL is ready.
+2.  **`kill_all_ros.sh`**: The ultimate panic button. Terminates specific ROS 2 and hardware processes safely, ensuring no system daemons (like SSH, Tailscale, or Docker) are touched.
+3.  **`send_goal.sh [X] [Y] [YAW_DEG]`**: Sours environment variables conditionally (to speed up execution in already-sourced terminals) and publishes a navigation goal. It waits 3 seconds and prints the last 15 lines of `nav2.log` directly in the terminal for instant diagnostic feedback.
 
 ---

@@ -62,17 +62,35 @@ To quickly start all necessary nodes (ROSboard, Foxglove, Hardware Bringup, RGB 
 ./start_mapping.sh
 ```
 
-**For Localization (Navigating a known map with SLAM Toolbox):**
+**For Localization (Starting SLAM localization on a known map):**
 ```bash
 ./start_localization.sh
 ```
 
-**For Full Autonomous Navigation (AMCL + Nav2 + TEB):**
+**For Navigation (Autonomous navigation with Regulated Pure Pursuit):**
 ```bash
+# Default: Start navigation and auto-localize at (x: 0.0, y: 0.0, yaw: 0 degrees)
 ./start_navigation.sh
+
+# Custom: Start navigation and auto-localize at (x: 1.5, y: -0.8, yaw: 90 degrees)
+./start_navigation.sh 1.5 -0.8 90
 ```
 
-These scripts handle environment sourcing, set the correct DDS implementation, and manage the background processes for you. Press **Ctrl+C** to stop all nodes.
+**Ultimate Panic Button (Emergency ROS 2 & hardware cleanup):**
+```bash
+./kill_all_ros.sh
+```
+
+**Send Navigation Goal from Command Line (with live log diagnosis):**
+```bash
+# Default: Command the robot to go to map origin (0.0, 0.0, 0 degrees)
+./send_goal.sh
+
+# Custom: Command the robot to go to (x: 1.5, y: 0.0, yaw: 0 degrees)
+./send_goal.sh 1.5 0.0 0
+```
+
+These scripts handle environment sourcing, set the correct DDS implementation, manage the background processes, and perform auto-pose mapping or live logging diagnostic feedback. Press **Ctrl+C** to stop active nodes.
 
 ---
 

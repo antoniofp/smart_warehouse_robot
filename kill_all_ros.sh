@@ -1,22 +1,9 @@
 #!/bin/bash
-echo "Stopping all ROS 2 nodes and related processes..."
+# Stop ROS 2 navigation, drivers, and visualization nodes
+echo "Stopping ROS 2 and Navigation nodes..."
 
-# Kill ROS 2 nodes
-pkill -f "ros2"
-pkill -f "Ackman_driver_R2"
-pkill -f "yahboom_joy_R2"
-pkill -f "joint_state_publisher"
-pkill -f "robot_state_publisher"
-pkill -f "slam_toolbox"
-pkill -f "usb_cam_node_exe"
-pkill -f "rosboard"
-pkill -f "sllidar_node"
+# Kill specific ROS 2, Nav2, and Yahboom driver processes
+pkill -f "ros2|amcl|map_server|planner_server|controller_server|bt_navigator|lifecycle_manager|recoveries_server|robot_state_publisher|joint_state_publisher|slam_toolbox|usb_cam_node_exe|rosboard|sllidar_node|Ackman_driver_R2|yahboom_joy_R2|rosbridge" || true
 
-# Kill any remaining python processes related to ROS
-pkill -f "python3 /opt/ros/foxy"
-pkill -f "python3 /root/yahboomcar_ros2_ws"
-
-# Cleanup daemon
-ros2 daemon stop 2>/dev/null
-
-echo "Cleanup complete."
+# Stop the ROS 2 daemon cleanly
+ros2 daemon stop 2>/dev/null || true

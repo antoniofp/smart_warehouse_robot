@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Consolidate all startup commands for the Smart Warehouse Robot SLAM Testing
-# Author: Gemini CLI
+# Author: Antigravity AI
 
 # 1. Source all ROS 2 environments in order
 source /opt/ros/foxy/setup.bash
@@ -14,14 +14,10 @@ export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 export ROS_DOMAIN_ID=32
 
 echo "----------------------------------------------------"
-echo "Cleaning up any previous ROS 2 processes..."
-pkill -f "ros2" || true
-pkill -f "Ackman_driver_R2" || true
-pkill -f "yahboom_joy_R2" || true
-pkill -f "joint_state_publisher" || true
-pkill -f "rosboard" || true
-ros2 daemon stop 2>/dev/null || true
-sleep 1
+echo "Cleaning up previous ROS 2 processes..."
+# Silently call the dedicated panic button script to avoid duplicate output
+/root/smart_warehouse_robot/kill_all_ros.sh > /dev/null 2>&1 || true
+sleep 2
 
 echo "Initializing Smart Warehouse Robot Mapping System..."
 echo "----------------------------------------------------"
@@ -36,7 +32,7 @@ echo "[2/5] Starting Foxglove Bridge..."
 ros2 launch rosbridge_server rosbridge_websocket_launch.xml > /dev/null 2>&1 &
 FOXGLOVE_PID=$!
 
-# 5. Start Hardware Bringup (Chassis + Lidar)
+# 5. Start Hardware Bringup (Laser + Base)
 echo "[3/5] Starting Hardware Bringup (Laser + Base)..."
 ros2 launch yahboomcar_nav laser_bringup_launch.py > /dev/null 2>&1 &
 BRINGUP_PID=$!
@@ -52,7 +48,7 @@ ros2 launch slam_toolbox online_async_launch.py > /dev/null 2>&1 &
 SLAM_PID=$!
 
 echo "----------------------------------------------------"
-echo "All systems are running."
+echo "All mapping systems are running."
 echo "Access ROSboard at: http://localhost:8888"
 echo "Access Foxglove via: ws://localhost:9090 (or robot IP)"
 echo "Press Ctrl+C to shut down all nodes safely."
@@ -62,29 +58,17 @@ echo "----------------------------------------------------"
 cleanup() {
     echo ""
     echo "Shutting down all processes..."
-    # 1. Kill specific PIDs first
+    # Kill background processes cleanly
     kill $ROSBOARD_PID $FOXGLOVE_PID $BRINGUP_PID $CAMERA_PID $SLAM_PID 2>/dev/null
-    
-    # 2. Forcefully kill any lingering ROS 2 nodes and Yahboom drivers
-    pkill -f "ros2"
-    pkill -f "rosbridge"
-    pkill -f "Ackman_driver_R2"
-    pkill -f "yahboom_joy_R2"
-    pkill -f "joint_state_publisher"
-    pkill -f "robot_state_publisher"
-    pkill -f "slam_toolbox"
-    pkill -f "usb_cam_node_exe"
-    pkill -f "rosboard"
-    pkill -f "sllidar_node"
-    
-    # 3. Cleanup ROS 2 daemon
-    ros2 daemon stop 2>/dev/null
-    
+
+    # Run the ultimate panic button to clean ROS 2 and drivers
+    /root/smart_warehouse_robot/kill_all_ros.sh > /dev/null 2>&1 || true
+
     echo "Done. All topics and nodes have been cleared."
     exit
 }
 
 trap cleanup INT
 
-# Keep the script running to manage background processes
+# Keep script active to monitor background tasks
 wait
