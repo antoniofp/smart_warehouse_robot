@@ -14,6 +14,7 @@ This workspace uses a remote setup where the AI agent (or user) runs on a fast h
   - If there are uncommitted changes on the Jetson container that do not conflict, pull normally.
   - If a merge conflict would occur, use `git stash` to temporarily shelf the changes, run `git pull`, and then `git stash pop`.
   - If conflicts arise after popping the stash, the AI must ask the user which changes should overwrite what (usually favoring the latest changes) and resolve them accordingly.
+  - **Detecting Unstaged Changes (Crucial):** At the start of every session, the AI must check for unstaged changes inside the Jetson container. If any exist, the AI must explicitly notify the user with a list of the modified files. The AI must never silently ignore, overwrite, or restore these files; it must ask the user whether to keep, commit, or restore (discard) them.
 
 ### 2. Development Workflows
 - **Quick Tests / Script Prototyping:**
