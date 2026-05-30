@@ -19,7 +19,7 @@ echo "Cleaning up previous ROS 2 processes..."
 /root/smart_warehouse_robot/kill_all_ros.sh > /dev/null 2>&1 || true
 sleep 2
 
-echo "Initializing Smart Warehouse Robot Navigation System (AMCL + TEB)..."
+echo "Initializing Smart Warehouse Robot Navigation System (AMCL + Pure Pursuit)..."
 echo "----------------------------------------------------"
 
 # 3. Start ROSboard (for visualization and web control)
@@ -42,9 +42,9 @@ echo "[4/5] Starting RGB Camera Node..."
 ros2 run usb_cam usb_cam_node_exe --ros-args -p video_device:="/dev/video0" -p pixel_format:="yuyv" > /dev/null 2>&1 &
 CAMERA_PID=$!
 
-# 7. Start Nav2 Bringup (with AMCL localization and custom TEB controller)
+# 7. Start Nav2 Bringup (with AMCL localization and Regulated Pure Pursuit controller)
 # Redirecting output to a dedicated log file for easy real-time debugging
-echo "[5/5] Starting Nav2 Navigation (AMCL + TEB)..."
+echo "[5/5] Starting Nav2 Navigation (AMCL + Pure Pursuit)..."
 mkdir -p /root/smart_warehouse_robot/log
 ros2 launch r2_nav bringup_launch.py params_file:=/root/smart_warehouse_robot/src/r2_nav/config/nav2_params.yaml default_bt_xml_filename:=/root/smart_warehouse_robot/src/r2_nav/behavior_trees/minimal_bt.xml > /root/smart_warehouse_robot/log/nav2.log 2>&1 &
 NAV_PID=$!
