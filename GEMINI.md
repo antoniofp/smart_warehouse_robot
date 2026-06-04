@@ -78,3 +78,10 @@ Manage long-running nodes (like ROSboard or the camera) in the background using 
 - **Initial Pose:**
   - Do NOT publish to `/initialpose` at runtime as it can corrupt the SLAM scan matching.
   - **Correct Method:** Edit the `map_start_pose` parameter in `src/slam_toolbox/config/mapper_params_localization.yaml` before launching the localization script.
+
+## Hardware Calibration (Front Steering & Odometry)
+We modified the manufacturer's Yahboom repository (located at `/root/yahboomcar_ros2_ws/yahboomcar_ws/` inside the Jetson container) to support runtime turning and steering calibration without rebuilding:
+- **Steering Offset**: Added a ROS 2 parameter `steering_offset` (in degrees) to `Ackman_driver_R2.py`. This applies a calibration offset to both the command (steer wheels straight) and the feedback (report true physical angle to odometry).
+- **Steering Scale**: Exposed the parameter `linear_scale_y` to scale the turning calculations in the odometry node.
+- **Top-Level Launch Files**: Updated `yahboomcar_bringup_R2_launch.py` and `laser_bringup_launch.py` to propagate these arguments down to the driver and odometry base nodes.
+- **Usage**: Both values can be adjusted dynamically in the startup script `./start_navigation.sh` via the `STEERING_OFFSET` and `STEERING_SCALE` variables.
