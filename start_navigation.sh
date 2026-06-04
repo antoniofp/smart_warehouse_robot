@@ -16,6 +16,16 @@ export ROBOT_TYPE=r2
 export RPLIDAR_TYPE=a1
 export CAMERA_TYPE=astraplus
 
+# Steering Calibration Offset (in degrees)
+# Positive value steers left, negative steers right.
+# Adjust this value so the robot drives perfectly straight.
+STEERING_OFFSET="0.0"
+
+# Steering Angle Scale (multiplier for turning calculation)
+# Decrease (e.g. 0.85) if robot thinks it turned more than physically.
+# Increase (e.g. 1.15) if robot thinks it turned less than physically.
+STEERING_SCALE="0.85"
+
 echo "----------------------------------------------------"
 echo "Cleaning up previous ROS 2 processes..."
 # Silently call the dedicated panic button script to avoid duplicate output
@@ -37,7 +47,7 @@ FOXGLOVE_PID=$!
 
 # 5. Start Hardware Bringup (Laser + Base)
 echo "[3/5] Starting Hardware Bringup (Laser + Base)..."
-ros2 launch yahboomcar_nav laser_bringup_launch.py > /dev/null 2>&1 &
+ros2 launch yahboomcar_nav laser_bringup_launch.py steering_offset:=$STEERING_OFFSET linear_scale_y:=$STEERING_SCALE > /dev/null 2>&1 &
 BRINGUP_PID=$!
 
 # 6. Start RGB Camera Feed (Limited to 5 FPS to reduce CPU usage)
@@ -56,6 +66,11 @@ NAV_PID=$!
 echo "Starting real-time Pose Logger..."
 python3 /root/smart_warehouse_robot/pose_logger.py > /dev/null 2>&1 &
 POSE_LOGGER_PID=$!
+
+# 7.6. Start real-time Odom-IMU Logger
+echo "Starting real-time Odom-IMU Logger..."
+python3 -u /root/smart_warehouse_robot/odom_imu_logger.py > /root/smart_warehouse_robot/log/odom_imu.log 2>&1 &
+ODOM_IMU_LOGGER_PID=$!
 
 
 # =====================================================================
@@ -118,7 +133,7 @@ cleanup() {
     echo ""
     echo "Shutting down all processes..."
     # Kill background processes cleanly
-    kill $ROSBOARD_PID $FOXGLOVE_PID $BRINGUP_PID $CAMERA_PID $NAV_PID $AUTO_POSE_PID $POSE_LOGGER_PID 2>/dev/null
+    kill $ROSBOARD_PID $FOXGLOVE_PID $BRINGUP_PID $CAMERA_PID $NAV_PID $AUTO_POSE_PID $POSE_LOGGER_PID $ODOM_IMU_LOGGER_PID 2>/dev/null
 
     # Run the ultimate panic button to clean ROS 2 and drivers
     /root/smart_warehouse_robot/kill_all_ros.sh > /dev/null 2>&1 || true
