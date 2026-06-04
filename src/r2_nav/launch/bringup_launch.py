@@ -119,21 +119,6 @@ def generate_launch_description():
                               'default_bt_xml_filename': default_bt_xml_filename,
                               'use_lifecycle_mgr': 'false',
                               'map_subscribe_transient_local': 'true'}.items()),
-
-        Node(
-            package='nav2_lifecycle_manager',
-            executable='lifecycle_manager',
-            name='lifecycle_manager_navigation',
-            output='screen',
-            parameters=[{'use_sim_time': use_sim_time},
-                        {'autostart': autostart},
-                        {'node_names': ['map_server',
-                                        'amcl',
-                                        'controller_server',
-                                        'planner_server',
-                                        'recoveries_server',
-                                        'bt_navigator',
-                                        'waypoint_follower']}]),
     ])
 
     # Create the launch description and populate
