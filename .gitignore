@@ -69,3 +69,5 @@ yolo_inference_host.py
 capture_frame.py
 runs/
 temp_host-docker_files/
+/handoff.md
+/scratch/
