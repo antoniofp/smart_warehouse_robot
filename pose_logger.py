@@ -27,7 +27,7 @@ class PoseLogger(Node):
         yaw_deg = math.degrees(yaw_rad)
         
         try:
-            with open(self.log_file, 'w') as f:
+            with open(self.log_file, 'a') as f:
                 f.write(f'X: {x:.4f}\nY: {y:.4f}\nYAW: {yaw_deg:.2f}\n')
         except Exception:
             pass
