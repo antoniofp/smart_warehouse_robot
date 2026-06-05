@@ -114,8 +114,8 @@ controller_server:
       desired_linear_vel: 0.12
       max_linear_accel: 0.5
       max_rotational_vel: 0.6
-      min_approach_linear_velocity: 0.05
-      approach_velocity_scaling_dist: 0.8
+      min_approach_linear_velocity: 0.10
+      approach_velocity_scaling_dist: 0.4
       use_velocity_scaled_by_curvature: true
       min_curve_velocity: 0.05
       regulated_linear_scaling_border_angle: 0.174
@@ -153,7 +153,7 @@ local_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 2.0
-        inflation_radius: 0.35
+        inflation_radius: 0.15
       voxel_layer:
         plugin: "nav2_costmap_2d::VoxelLayer"
         enabled: True
@@ -208,7 +208,7 @@ global_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 1.5
-        inflation_radius: 0.35
+        inflation_radius: 0.15
       always_send_full_costmap: True
   global_costmap_client:
     ros__parameters:
