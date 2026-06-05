@@ -64,7 +64,7 @@ NAV_PID=$!
 
 # 7.5. Start real-time Pose Logger
 echo "Starting real-time Pose Logger..."
-python3 /root/smart_warehouse_robot/pose_logger.py > /dev/null 2>&1 &
+python3 /root/smart_warehouse_robot/pose_logger.py > /root/smart_warehouse_robot/log/pose.log 2>&1 &
 POSE_LOGGER_PID=$!
 
 # 7.6. Start real-time Odom-IMU Logger
