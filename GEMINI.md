@@ -62,12 +62,12 @@ Manage long-running nodes (like ROSboard or the camera) in the background using 
   `ros2 run nav2_map_server map_saver_cli -f /root/maps/my_warehouse_map --ros-args -p map_subscribe_transient_local:=true`
 
 ## Navigation (Nav2 & SLAM Localization)
-- **TEB Planner (Crucial for R2 Ackerman Steering):** Do NOT use the default DWA planner. Use TEB to respect the steering radius constraints.
+- **Pure Pursuit Planner:** Do NOT use the default DWA planner. We use the Pure Pursuit planner instead of TEB, as TEB was too computationally heavy. Pure Pursuit handles the R2 Ackerman steering radius constraints more efficiently.
 - **Custom Behavior Tree:** We use `src/r2_nav/behavior_trees/minimal_bt.xml` which includes a `RecoveryNode` and `ClearEntireCostmap` to handle obstacles more robustly.
 - **Localization:** We use SLAM Toolbox in Localization mode.
 - **Startup Scripts:**
   - `./start_localization.sh`: Starts SLAM Toolbox in localization mode using the saved map.
-  - `./start_navigation.sh`: Full navigation stack including AMCL localization, Nav2 with TEB planner, and custom Behavior Tree.
+  - `./start_navigation.sh`: Full navigation stack including AMCL localization, Nav2 with Pure Pursuit planner, and custom Behavior Tree.
 - **Map Location:** Perfect maps are stored in `src/r2_nav/maps/`. Update the `map_file_name` in `src/slam_toolbox/config/mapper_params_localization.yaml` if you create a new map.
 
 ## Visualization & Headless Operation
