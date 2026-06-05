@@ -42,23 +42,20 @@ def patch_ekf_file(path):
     
     for i, line in enumerate(lines):
         if 'odom0_config:' in line:
-            # We want to change odom0_config to:
-            # odom0_config: [true, true, false, false, false, false, true, true, false, false, false, false, false, false, false]
-            # Replace the next 3 lines containing configuration values
+            # Fuse position (x, y), orientation (yaw), velocities (vx, vy), and yaw rate (vyaw)
             lines[i]   = "        odom0_config: [true, true, false,\n"
-            lines[i+1] = "                       false, false, false,\n"
+            lines[i+1] = "                       false, false, true,\n"
             lines[i+2] = "                       true, true, false,\n"
-            lines[i+3] = "                       false, false, false,\n"
+            lines[i+3] = "                       false, false, true,\n"
             lines[i+4] = "                       false, false, false]\n"
             odom0_found = True
             modified = True
             print(f"Patched odom0_config in {path}")
             
         elif 'imu0_config:' in line:
-            # We want to change imu0_config to:
-            # imu0_config: [false, false, false, false, false, false, false, false, false, false, false, true, false, false, false]
+            # Fuse orientation (yaw) and yaw rate (vyaw) from IMU
             lines[i]   = "        imu0_config: [false, false, false,\n"
-            lines[i+1] = "                      false, false, false ,\n"
+            lines[i+1] = "                      false, false, true ,\n"
             lines[i+2] = "                      false, false, false,\n"
             lines[i+3] = "                      false, false, true,\n"
             lines[i+4] = "                      false, false, false]\n"
@@ -83,6 +80,34 @@ def patch_ekf_file(path):
 
 patch_ekf_file(ekf_src_path)
 patch_ekf_file(ekf_inst_path)
+
+# 2.5. Patch imu_filter_param.yaml (to ensure use_mag is false)
+imu_filter_src = '/root/yahboomcar_ros2_ws/yahboomcar_ws/src/yahboomcar_bringup/param/imu_filter_param.yaml'
+imu_filter_inst = '/root/yahboomcar_ros2_ws/yahboomcar_ws/install/yahboomcar_bringup/share/yahboomcar_bringup/param/imu_filter_param.yaml'
+
+def patch_imu_filter(path):
+    if not os.path.exists(path):
+        print(f"Warning: IMU filter path not found: {path}")
+        return False
+        
+    with open(path, 'r') as f:
+        content = f.read()
+        
+    if 'use_mag: true' in content:
+        content = content.replace('use_mag: true', 'use_mag: false')
+        with open(path, 'w') as f:
+            f.write(content)
+        print(f"Patched use_mag to false in {path}")
+        return True
+    elif 'use_mag: false' in content:
+        print(f"IMU filter already has use_mag set to false in {path}")
+        return True
+    else:
+        print(f"Warning: use_mag parameter not found in {path}")
+        return False
+
+patch_imu_filter(imu_filter_src)
+patch_imu_filter(imu_filter_inst)
 
 # 3. Rebuild the workspace inside the container
 print("Rebuilding workspace using colcon build...")
