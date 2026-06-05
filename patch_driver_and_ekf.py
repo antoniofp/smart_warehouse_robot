@@ -42,9 +42,8 @@ def patch_ekf_file(path):
     
     for i, line in enumerate(lines):
         if 'odom0_config:' in line:
-            # Fuse ONLY velocities (vx, vy) from wheel odometry. 
-            # Disable absolute position (X, Y) and yaw to avoid drift conflict with IMU.
-            lines[i]   = "        odom0_config: [false, false, false,\n"
+            # Fuse absolute position (X, Y) and velocities from wheel odometry.
+            lines[i]   = "        odom0_config: [true, true, false,\n"
             lines[i+1] = "                       false, false, false,\n"
             lines[i+2] = "                       true, true, false,\n"
             lines[i+3] = "                       false, false, true,\n"
