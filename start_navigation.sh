@@ -24,7 +24,7 @@ STEERING_OFFSET="0.0"
 # Steering Angle Scale (multiplier for turning calculation)
 # Decrease (e.g. 0.85) if robot thinks it turned more than physically.
 # Increase (e.g. 1.15) if robot thinks it turned less than physically.
-STEERING_SCALE="0.80"
+STEERING_SCALE="0.78"
 
 echo "----------------------------------------------------"
 echo "Cleaning up previous ROS 2 processes..."
