@@ -47,7 +47,7 @@ def patch_ekf_file(path):
             lines[i]   = "        odom0_config: [false, false, false,\n"
             lines[i+1] = "                       false, false, false,\n"
             lines[i+2] = "                       true, true, false,\n"
-            lines[i+3] = "                       false, false, false,\n"
+            lines[i+3] = "                       false, false, true,\n"
             lines[i+4] = "                       false, false, false]\n"
             odom0_found = True
             modified = True
