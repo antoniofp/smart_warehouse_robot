@@ -124,7 +124,7 @@ controller_server:
       cost_scaling_dist: 0.6
       cost_scaling_factor: 10.0
       lookahead_dist: 0.3
-      min_lookahead_dist: 0.15
+      min_lookahead_dist: 0.30
       max_lookahead_dist: 0.4
       lookahead_time: 1.5
       use_interpolation: true
