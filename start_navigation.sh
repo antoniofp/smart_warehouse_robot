@@ -80,7 +80,7 @@ ODOM_IMU_LOGGER_PID=$!
 # If no arguments are passed, it defaults to X=0.0, Y=0.0, YAW=0.0 degrees.
 # =====================================================================
 INITIAL_X="${1:-0.0}"
-INITIAL_Y="${2:--0.9}"
+INITIAL_Y="${2:-0.0}"
 INITIAL_YAW_DEG="${3:-0.0}"
 
 # Convert YAW from degrees to Quaternion Z and W using python3 automatically
