@@ -16,15 +16,27 @@ class WarehouseMissionServer(Node):
         self._action_client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
 
-        # Tus 5 puntos de patrullaje originales (Ruta de Ida)
-        # Formato: (X, Y, Yaw_en_grados)
-        self.waypoints = [
+        # 1. LISTA EXPLÍCITA DE IDA
+        self.waypoints_ida = [
             (2.3,  0.0, 0.0),   # Punto 1
             (2.3,  2.0, 0.0),   # Punto 2
             (1.3,  2.0, 0.0),   # Punto 3
             (0.8,  1.6, 0.0),   # Punto 4
             (-0.2, 1.6, 0.0)    # Punto 5 (Aquí entra la reversa)
         ]
+
+        # 2. LISTA EXPLÍCITA DE REGRESO CORREGIDA
+        # El origen (0.0, 0.0, 0.0) ahora es el último destino de la misión
+        self.waypoints_regreso = [
+            (0.8,  1.6, 0.0),   # Regreso - Punto 1
+            (1.3,  2.0, 0.0),   # Regreso - Punto 2
+            (2.3,  2.0, 0.0),   # Regreso - Punto 3
+            (2.3,  0.0, 0.0),   # Regreso - Punto 4
+            (0.0,  0.0, 0.0)    # Regreso - Punto 5 (Punto Final)
+        ]
+
+        # Apuntamos inicialmente a la ruta de ida
+        self.waypoints = self.waypoints_ida
         self.current_index = 0
         self.timer = None
         self.returning = False
@@ -39,19 +51,18 @@ class WarehouseMissionServer(Node):
 
     def start_mission(self):
         print("----------------------------------------------------")
-        print(f"    Iniciando misión de almacén. Puntos totales: {len(self.waypoints)}")
+        print(f"    Iniciando misión de almacén. Puntos de IDA: {len(self.waypoints_ida)}")
         print("----------------------------------------------------")
         self.send_next_goal()
 
     def send_next_goal(self):
-        # Si terminamos los puntos actuales de la lista...
         if self.current_index >= len(self.waypoints):
             if not self.returning:
-                # Al acabar la ida, ejecutamos la reversa
+                # Al acabar la ida, ejecutamos la maniobra física de reversa
                 self.execute_backwards_maneuver()
             else:
-                # Al acabar el regreso, la misión global termina
-                print("\n    ¡MISIÓN COMPLETADA CON ÉXITO! El robot volvió al origen.")
+                # Al acabar la lista de regreso (alcanzar el 0,0,0), la misión termina
+                print("\n    ¡MISIÓN COMPLETADA CON ÉXITO! El robot volvió al origen original.")
                 self.destroy_node()
                 rclpy.shutdown()
                 sys.exit(0)
@@ -61,7 +72,6 @@ class WarehouseMissionServer(Node):
         ruta_str = "REGRESO" if self.returning else "IDA"
         print(f"\n    [{ruta_str} - Punto {self.current_index + 1}/{len(self.waypoints)}] Objetivo principal: X={x}, Y={y}, Yaw={yaw_deg}")
 
-        # Reseteamos sensores de atasco para el nuevo punto
         self.navigating = True
         self.current_distance = 999.0
         self.last_distance = 999.0
@@ -85,7 +95,6 @@ class WarehouseMissionServer(Node):
         goal_msg.pose.pose.orientation.z = math.sin(half_yaw)
         goal_msg.pose.pose.orientation.w = math.cos(half_yaw)
 
-        # Imprime explícitamente en la terminal cada vez que se inyecta el punto a Nav2
         print(f"    [ENVIANDO] Inyectando coordenadas a Nav2: X={x}, Y={y}...")
 
         send_goal_future = self._action_client.send_goal_async(
@@ -99,50 +108,43 @@ class WarehouseMissionServer(Node):
         print(f"    [>>] Moviendo... Distancia al destino: {self.current_distance:.2f} m    ", end='\r')
 
     def watchdog_check(self):
-        # Revisa cada 3 segundos si el robot se quedó atascado o en bucles de Nav2
         if self.navigating:
             diferencia = abs(self.last_distance - self.current_distance)
 
-            # Si la distancia no varía ni 5 centímetros, está atascado
             if self.current_distance == 999.0 or diferencia < 0.05:
                 self.stuck_seconds += 3
-                if self.stuck_seconds >= 6:  # Pasados 6 segundos congelado
+                if self.stuck_seconds >= 6:  
                     x, y, yaw_deg = self.waypoints[self.current_index]
                     print(f"\n    [ATASCO DETECTADO] Re-enviando de forma continua e instantánea.")
                     
-                    # CANCELACIÓN ACTIVA: Rompe el bucle de recuperación de Nav2 cancelando la meta anterior
                     if self.goal_handle is not None:
                         self.goal_handle.cancel_goal_async()
                     
-                    # Re-inyectamos el punto inmediatamente
                     self.send_goal_internal(x, y, yaw_deg)
                     self.stuck_seconds = 0
             else:
-                # El robot avanza bien, guardamos progreso
                 self.last_distance = self.current_distance
                 self.stuck_seconds = 0
 
     def goal_response_callback(self, future):
         goal_handle = future.result()
         if not goal_handle.accepted:
-            # Si Nav2 rechaza la ruta, forzamos al Watchdog a re-enviar en el próximo ciclo
             self.stuck_seconds = 6 
             return
 
-        self.goal_handle = goal_handle  # Guardamos el handle activo
+        self.goal_handle = goal_handle  
         get_result_future = goal_handle.get_result_async()
         get_result_future.add_done_callback(self.get_result_callback)
 
     def get_result_callback(self, future):
         status = future.result().status
-        if status == 4:  # SUCCEEDED (Llegó con éxito)
+        if status == 4:  # SUCCEEDED
             self.navigating = False
             self.goal_handle = None
             print(f"\n    Punto {self.current_index + 1} alcanzado con éxito!")
             self.current_index += 1
             self.timer = self.create_timer(1.0, self.timer_callback)
         else:
-            # Si falló o fue cancelado por el Watchdog, forzamos reintento
             self.stuck_seconds = 6
 
     def timer_callback(self):
@@ -175,18 +177,14 @@ class WarehouseMissionServer(Node):
             self.cmd_vel_pub.publish(freno_twist)
             time.sleep(0.05)
 
-        print("\n    Invirtiendo y depurando ruta para regresar al origen...")
+        print("\n    Cambiando a la ruta explícita de regreso ordenada al revés...")
 
-        # --- REBANADO MÁGICO (SLICING) ---
-        # self.waypoints[:-1] elimina el Punto 5 (donde ya estamos parados)
-        # [::-1] invierte el resto para dejar exactamente: [(Punto 4), (Punto 3), (Punto 2), (Punto 1)]
-        self.waypoints = self.waypoints[:-1][::-1]
-        
-        # Reiniciamos variables de navegación para la vuelta
+        # Activamos la lista fija de regreso con el (0,0,0) al final
+        self.waypoints = self.waypoints_regreso
         self.current_index = 0
         self.returning = True
 
-        print(f"    Ruta de regreso lista. Puntos totales a visitar: {len(self.waypoints)}")
+        print(f"    Ruta de regreso cargada. Puntos totales a visitar: {len(self.waypoints)}")
         time.sleep(2.0)
         self.send_next_goal()
 

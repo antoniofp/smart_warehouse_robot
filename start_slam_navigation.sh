@@ -27,10 +27,10 @@ echo "----------------------------------------------------"
 # Create log directory if it does not exist
 mkdir -p /root/smart_warehouse_robot/log
 
-# 3. Start ROSboard (for visualization and web control)
-echo "[1/5] Starting ROSboard..."
-cd /root/rosboard && ./run > /dev/null 2>&1 &
-ROSBOARD_PID=$!
+# 3. ROSboard startup disabled to conserve system resources
+echo "[1/5] ROSboard is DISABLED (to conserve resources)"
+# cd /root/rosboard && ./run > /dev/null 2>&1 &
+# ROSBOARD_PID=$!
 
 # 4. Start Foxglove Bridge (for modern web-based telemetry)
 echo "[2/5] Starting Foxglove Bridge..."
@@ -44,7 +44,8 @@ BRINGUP_PID=$!
 
 # 6. Start RGB Camera Feed
 echo "[4/5] Starting RGB Camera Node..."
-ros2 run usb_cam usb_cam_node_exe --ros-args -p video_device:="/dev/video0" -p pixel_format:="yuyv" > /dev/null 2>&1 &
+# Rate limit camera to 5 FPS to reduce USB and CPU load
+ros2 run usb_cam usb_cam_node_exe --ros-args -p video_device:="/dev/video0" -p pixel_format:="yuyv" -p framerate:=5.0 > /dev/null 2>&1 &
 CAMERA_PID=$!
 
 # 7. Start SLAM Toolbox (Localization Mode) + Nav2 Navigation
@@ -57,7 +58,7 @@ SLAM_PID=$!
 
 echo "----------------------------------------------------"
 echo "All SLAM localization and navigation systems are running."
-echo "Access ROSboard at: http://localhost:8888"
+echo "Access ROSboard at: http://localhost:8888 (DISABLED)"
 echo "Access Foxglove via: ws://localhost:9090 (or robot IP)"
 echo "Press Ctrl+C to shut down all nodes safely."
 echo "----------------------------------------------------"
@@ -67,7 +68,7 @@ cleanup() {
     echo ""
     echo "Shutting down all processes..."
     # Kill background processes cleanly
-    kill $ROSBOARD_PID $FOXGLOVE_PID $BRINGUP_PID $CAMERA_PID $SLAM_PID 2>/dev/null
+    kill $FOXGLOVE_PID $BRINGUP_PID $CAMERA_PID $SLAM_PID 2>/dev/null
 
     # Run the ultimate panic button in the original directory
     /root/smart_warehouse_robot/kill_all_ros.sh > /dev/null 2>&1 || true
