@@ -105,7 +105,7 @@ export CAMERA_TYPE=astraplus
             export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 
             echo "Publishing initial pose (x: $INITIAL_X, y: $INITIAL_Y, yaw: $INITIAL_YAW_DEG deg)..."
-            ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped "{header: {stamp: {sec: 0, nanosec: 0}, frame_id: 'map'}, pose: {pose: {position: {x: $INITIAL_X, y: $INITIAL_Y, z: 0.0}, orientation: {x: 0.0, y: 0.0, z: $INITIAL_Z_ORIENT, w: $INITIAL_W_ORIENT}}, covariance: [0.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.06853891945200942]}}" > /dev/null 2>&1
+            ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped "{header: {stamp: {sec: 0, nanosec: 0}, frame_id: 'map'}, pose: {pose: {position: {x: $INITIAL_X, y: $INITIAL_Y, z: 0.0}, orientation: {x: 0.0, y: 0.0, z: $INITIAL_Z_ORIENT, w: $INITIAL_W_ORIENT}}, covariance: [0.01, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.005]}}" > /dev/null 2>&1
 
             echo ""
             echo "=========================================================="

@@ -1,25 +1,25 @@
 import os
 import subprocess
 
-# 1. Patch Ackman_driver_R2.py (to ensure non-inverted gyro Z)
+# 1. Patch Ackman_driver_R2.py (to ensure correct accelerometer Z coordinate frame)
 driver_path = '/root/yahboomcar_ros2_ws/yahboomcar_ws/src/yahboomcar_bringup/yahboomcar_bringup/Ackman_driver_R2.py'
 
 if os.path.exists(driver_path):
     with open(driver_path, 'r') as f:
         content = f.read()
     
-    old_line = 'imu.angular_velocity.z = -gz*1.0'
-    new_line = 'imu.angular_velocity.z = gz*1.0'
+    old_line = 'imu.linear_acceleration.z = az*1.0'
+    new_line = 'imu.linear_acceleration.z = -az*1.0'
     
     if old_line in content:
         content = content.replace(old_line, new_line)
-        print("Driver successfully patched (reverted gyro Z to non-inverted).")
+        print("Driver successfully patched (inverted accelerometer Z for correct gravity vector orientation).")
         with open(driver_path, 'w') as f:
             f.write(content)
     elif new_line in content:
-        print("Driver already patched (gyro Z is non-inverted).")
+        print("Driver already patched (accelerometer Z is already inverted).")
     else:
-        print("Warning: Could not find gyro Z sign adjustment in driver script (already standard).")
+        print("Warning: Could not find accelerometer Z adjustment in driver script.")
 else:
     print(f"Error: Driver path not found: {driver_path}")
 
@@ -42,9 +42,9 @@ def patch_ekf_file(path):
     
     for i, line in enumerate(lines):
         if 'odom0_config:' in line:
-            # Fuse absolute position (X, Y) and velocities from wheel odometry.
+            # Fuse position (x, y), orientation (yaw), velocities (vx, vy), and yaw rate (vyaw) from wheel odometry.
             lines[i]   = "        odom0_config: [true, true, false,\n"
-            lines[i+1] = "                       false, false, false,\n"
+            lines[i+1] = "                       false, false, true,\n"
             lines[i+2] = "                       true, true, false,\n"
             lines[i+3] = "                       false, false, true,\n"
             lines[i+4] = "                       false, false, false]\n"
@@ -62,15 +62,6 @@ def patch_ekf_file(path):
             imu0_found = True
             modified = True
             print(f"Patched imu0_config in {path}")
-            
-        elif 'process_noise_covariance:' in line:
-            # The 12th row starts 11 lines after process_noise_covariance
-            target_line = lines[i + 11]
-            if '0.02,' in target_line:
-                lines[i + 11] = target_line.replace('0.02,', '0.08,')
-                process_noise_found = True
-                modified = True
-                print(f"Patched process_noise_covariance (v_yaw = 0.08) in {path}")
             
     if modified:
         with open(path, 'w') as f:

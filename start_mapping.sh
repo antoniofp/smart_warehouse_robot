@@ -12,6 +12,9 @@ source /root/smart_warehouse_robot/install/setup.bash
 # 2. Critical: Use CycloneDDS for SLAM stability on Jetson Nano
 export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 export ROS_DOMAIN_ID=32
+export ROBOT_TYPE=r2
+export RPLIDAR_TYPE=a1
+export CAMERA_TYPE=astraplus
 
 echo "----------------------------------------------------"
 echo "Cleaning up previous ROS 2 processes..."
@@ -34,7 +37,9 @@ FOXGLOVE_PID=$!
 
 # 5. Start Hardware Bringup (Laser + Base)
 echo "[3/5] Starting Hardware Bringup (Laser + Base)..."
-ros2 launch yahboomcar_nav laser_bringup_launch.py > /dev/null 2>&1 &
+STEERING_OFFSET="0.0"
+STEERING_SCALE="0.78"
+ros2 launch yahboomcar_nav laser_bringup_launch.py steering_offset:=$STEERING_OFFSET linear_scale_y:=$STEERING_SCALE > /dev/null 2>&1 &
 BRINGUP_PID=$!
 
 # 6. Start RGB Camera Feed
