@@ -128,7 +128,7 @@ controller_server:
       max_lookahead_dist: 1.0
       lookahead_time: 1.5
       use_interpolation: true
-      transform_tolerance: 0.1
+      transform_tolerance: 1.0
       use_collision_checker: true
       use_rotate_to_heading: false
 
@@ -167,6 +167,7 @@ local_costmap:
         scan:
           topic: /scan
           max_obstacle_height: 2.0
+          obstacle_min_range: 0.05
           clearing: True
           marking: True
           data_type: "LaserScan"
@@ -199,6 +200,7 @@ global_costmap:
         scan:
           topic: /scan
           max_obstacle_height: 2.0
+          obstacle_min_range: 0.05
           clearing: True
           marking: True
           data_type: "LaserScan"

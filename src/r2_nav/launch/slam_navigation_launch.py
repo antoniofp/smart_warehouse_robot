@@ -40,10 +40,10 @@ def generate_launch_description():
         description='Automatically startup the nav2 stack')
 
     # 1. Start SLAM Toolbox in Localization Mode
-    # It will use the configuration defined in the compiled slam_toolbox config directory
+    # Pointing directly to the absolute path of the configuration file in the original workspace source tree
     slam_toolbox_localization_node = Node(
         parameters=[
-            os.path.join(get_package_share_directory('slam_toolbox'), 'config', 'mapper_params_localization.yaml')
+            '/root/smart_warehouse_robot/src/slam_toolbox/config/mapper_params_localization.yaml'
         ],
         package='slam_toolbox',
         executable='localization_slam_toolbox_node',
@@ -52,31 +52,15 @@ def generate_launch_description():
     )
 
     # 2. Start Nav2 Navigation (planner, controller, recoveries, bt_navigator, waypoint_follower)
-    # Note: map_server and amcl are not launched here because SLAM Toolbox handles localization and map serving
+    # Note: navigation_launch.py already starts its own lifecycle manager for these 5 nodes,
+    # so we do not launch a separate lifecycle manager here to avoid conflicts.
     navigation_cmd = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(nav2_bringup_dir, 'launch', 'navigation_launch.py')),
         launch_arguments={'use_sim_time': use_sim_time,
                           'autostart': autostart,
                           'params_file': params_file,
                           'default_bt_xml_filename': default_bt_xml_filename,
-                          'use_lifecycle_mgr': 'false',
                           'map_subscribe_transient_local': 'true'}.items()
-    )
-
-    # 3. Lifecycle Manager to transition the navigation nodes to active state
-    # Excludes map_server and amcl as they are replaced by slam_toolbox
-    lifecycle_manager_navigation_node = Node(
-        package='nav2_lifecycle_manager',
-        executable='lifecycle_manager',
-        name='lifecycle_manager_navigation',
-        output='screen',
-        parameters=[{'use_sim_time': use_sim_time},
-                    {'autostart': autostart},
-                    {'node_names': ['controller_server',
-                                    'planner_server',
-                                    'recoveries_server',
-                                    'bt_navigator',
-                                    'waypoint_follower']}]
     )
 
     # Create the launch description and populate
@@ -91,6 +75,5 @@ def generate_launch_description():
     # Add the nodes and launch commands
     ld.add_action(slam_toolbox_localization_node)
     ld.add_action(navigation_cmd)
-    ld.add_action(lifecycle_manager_navigation_node)
 
     return ld
