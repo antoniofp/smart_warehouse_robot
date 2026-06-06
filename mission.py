@@ -32,7 +32,7 @@ class WarehouseMissionServer(Node):
             (1.3,  2.0, 0.0),   # Regreso - Punto 2
             (2.3,  2.0, 0.0),   # Regreso - Punto 3
             (2.3,  0.0, 0.0),   # Regreso - Punto 4
-            (0.0,  0.0, 0.0)    # Regreso - Punto 5 (Punto Final)
+            (-0.2,  0.0, 0.0)    # Regreso - Punto 5 (Punto Final)
         ]
 
         # Apuntamos inicialmente a la ruta de ida

@@ -22,8 +22,8 @@ slam_toolbox:
     map_start_pose: [0.0, 0.0, 0.0]
 
     debug_logging: false
-    throttle_scans: 1
-    transform_publish_period: 0.02
+    throttle_scans: 2
+    transform_publish_period: 0.05
     map_update_interval: 1.0
     resolution: 0.03
     max_laser_range: 4.5
@@ -41,7 +41,7 @@ slam_toolbox:
     scan_buffer_maximum_scan_distance: 4.5
     link_match_minimum_response_fine: 0.2
     link_scan_maximum_distance: 1.5
-    do_loop_closing: true
+    do_loop_closing: false
     loop_match_minimum_chain_size: 10
     loop_match_maximum_variance_coarse: 3.0
     loop_match_minimum_response_coarse: 0.35
