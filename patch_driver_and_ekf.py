@@ -110,14 +110,6 @@ try:
     )
     print("yahboomcar_bringup build output:")
     print(res1.stdout)
-    
-    # Run colcon build for robot_localization package
-    res2 = subprocess.run(
-        ["/bin/bash", "-c", "source /opt/ros/foxy/setup.bash && cd /root/yahboomcar_ros2_ws/software/library_ws && colcon build --packages-select robot_localization"],
-        capture_output=True, text=True, check=True
-    )
-    print("robot_localization build output:")
-    print(res2.stdout)
 except subprocess.CalledProcessError as e:
     print("Colcon build failed!")
     print(e.stderr)
