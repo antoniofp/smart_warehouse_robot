@@ -15,7 +15,7 @@ slam_toolbox:
     mode: localization
 
     # El mapa perfecto que guardaste antes
-    map_file_name: /root/smart_warehouse_robot/src/r2_nav/maps/mapa_perfecto
+    map_file_name: /root/smart_warehouse_robot/src/r2_nav/maps/my_map
     # CRITICAL: Set the robot's physical starting position [x, y, theta] relative to the map origin.
     # Update these values BEFORE running SLAM Localization to ensure the pose transform is correct.
     # Modifying /initialpose while running can cause map distortion.
