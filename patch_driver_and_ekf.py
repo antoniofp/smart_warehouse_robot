@@ -8,18 +8,37 @@ if os.path.exists(driver_path):
     with open(driver_path, 'r') as f:
         content = f.read()
     
+    # Patch accelerometer Z sign
     old_line = 'imu.linear_acceleration.z = az*1.0'
     new_line = 'imu.linear_acceleration.z = -az*1.0'
+    
+    # Patch IMU frame ID to base_link to align with driver values
+    old_param = "self.declare_parameter('imu_link', 'imu_link')"
+    new_param = "self.declare_parameter('imu_link', 'base_link')"
+    
+    modified = False
     
     if old_line in content:
         content = content.replace(old_line, new_line)
         print("Driver successfully patched (inverted accelerometer Z for correct gravity vector orientation).")
-        with open(driver_path, 'w') as f:
-            f.write(content)
+        modified = True
     elif new_line in content:
         print("Driver already patched (accelerometer Z is already inverted).")
     else:
         print("Warning: Could not find accelerometer Z adjustment in driver script.")
+        
+    if old_param in content:
+        content = content.replace(old_param, new_param)
+        print("Driver successfully patched (set default imu_link parameter to 'base_link').")
+        modified = True
+    elif new_param in content:
+        print("Driver already patched (imu_link default is already 'base_link').")
+    else:
+        print("Warning: Could not find imu_link parameter declaration in driver script.")
+        
+    if modified:
+        with open(driver_path, 'w') as f:
+            f.write(content)
 else:
     print(f"Error: Driver path not found: {driver_path}")
 
