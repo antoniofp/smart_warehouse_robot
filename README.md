@@ -8,6 +8,18 @@ This project uses a split processing architecture to maximize the robot's hardwa
 1. **Robot**: Handles Hardware Bringup, SLAM, Nav2 Pure Pursuit, HTTP Video Streaming, and the Mission State Machine.
 2. **Host PC**: Connects to the robot's camera stream, runs YOLOv8 inference, and sends real-time obstacle detections back to the robot via a zero-lag UDP socket (Port 5005).
 
+## Requirements
+
+### Robot
+*   **OS:** Ubuntu 20.04 (Focal Fossa)
+*   **ROS 2:** Foxy Fitzroy (with `nav2` and `slam_toolbox` packages)
+*   *(Optional)* Docker and NVIDIA Container Runtime.
+
+### Host PC
+*   **Python:** 3.8+
+*   **Libraries:** `ultralytics`, `torch`, `opencv-python`, `numpy`.
+*   A CUDA-capable GPU is highly recommended for real-time YOLOv8 inference.
+
 ## Repository Structure
 
 ```text
