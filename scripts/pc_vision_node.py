@@ -87,15 +87,15 @@ while True:
             alto_px = float(xywh[3])
             # Define specific pixel thresholds per class
             thresholds = {
-                "loading_zone": 50.0,
-                "loading": 50.0,
+                "loading_zone": 70.0,
+                "loading": 70.0,
                 "pedestrian_zone": 80.0,
                 "pedestrian": 80.0,
                 "restricted_zone": 20.0,
                 "restricted_area": 20.0,
                 "restricted": 20.0,
-                "stop_for_safety": 60.0,
-                "stop": 60.0,
+                "stop_for_safety": 40.0,
+                "stop": 40.0,
                 "robot_only_zone": 50.0,
                 "robot_only": 50.0,
                 "agv": 50.0,

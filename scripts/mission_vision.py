@@ -209,7 +209,7 @@ class WarehouseMissionServer(Node):
             # ====================================================
             else:
                 # Ignore anything not related to Return
-                if not any(x in clase for x in ["stop", "robots", "parking", "agv"]):
+                if not any(x in clase for x in ["stop", "robot", "parking", "agv"]):
                     return
 
                 # A. STOP FOR SAFETY (Halt for 5 seconds exactly once)
