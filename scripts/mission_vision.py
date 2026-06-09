@@ -40,7 +40,7 @@ class CamHandler(BaseHTTPRequestHandler):
                         self.wfile.write(b'\r\n')
                     except (ConnectionResetError, BrokenPipeError):
                         break
-                time.sleep(0.03) # Smooth streaming at ~30 FPS
+                time.sleep(0.20) # Match camera limit at ~5 FPS to prevent network saturation
 
 class WarehouseMissionServer(Node):
     def __init__(self):
@@ -79,7 +79,7 @@ class WarehouseMissionServer(Node):
         self.waypoints_regreso = [
             (0.8,  1.6, 0.0),   # Return - Point 1
             (1.3,  2.0, 0.0),   # Return - Point 2
-            (2.3,  2.0, 0.0),   # Return - Point 3
+            (2.0,  2.0, 0.0),   # Return - Point 3 (Moved to start curve earlier)
             (2.3,  0.0, 0.0),   # Return - Point 4
             (0.0,  0.0, 0.0)    # Return - Point 5 (Final Origin)
         ]
@@ -116,8 +116,7 @@ class WarehouseMissionServer(Node):
         self.sock.setblocking(False)
         self.udp_timer = self.create_timer(0.1, self.listen_yolo_udp)
 
-        # Initialize the Nav2 controller desired speed to 0.18 m/s
-        self.set_nav2_speed(0.18)
+        # Uses YAML parameters exclusively for navigation
 
     def camera_callback(self, msg):
         global latest_jpeg_bytes
@@ -166,42 +165,33 @@ class WarehouseMissionServer(Node):
             # ====================================================
             if not self.returning:
                 # Ignore anything not related to Outbound
-                if clase not in ["pedestrian_zone", "pedestrian", "pedestrianzone", 
-                                 "restricted_area", "restricted", "restrictedarea", 
-                                 "loading_zone", "loading", "loadingzone"]:
+                if not any(x in clase for x in ["pedestrian", "restricted", "loading"]):
                     return
 
-                # A. PEDESTRIAN ZONE (Speed reduced to 30% of original, which is 0.054 m/s)
-                if clase in ["pedestrian_zone", "pedestrian", "pedestrianzone"]:
+                # A. PEDESTRIAN ZONE (FAKE SLOWDOWN)
+                if "pedestrian" in clase and self.navigating:
                     if self.current_zone != "Pedestrian Zone":
-                        print(f"\n====================================================")
-                        print(f" [🚶 RULE TRIGGER] Detected Outbound: '{clase_raw.strip()}'")
-                        print(f" Action: Pedestrians in area. Reducing speed by 70% (to 30%).")
-                        print(f"====================================================\n")
                         self.current_zone = "Pedestrian Zone"
-                        self.set_nav2_speed(0.054)
+                        print(f"\n\033[96m\033[1m{'='*60}")
+                        print(f" 🚶 🚶 🚶 PEDESTRIAN ZONE DETECTED 🚶 🚶 🚶")
+                        print(f" Reducing speed 50%...")
+                        print(f"{'='*60}\033[0m\n")
 
-                # B. RESTRICTED AREA (Skip current waypoint)
-                elif clase in ["restricted_area", "restricted", "restrictedarea"] and self.navigating:
+                # B. RESTRICTED AREA (Log only, no navigation changes)
+                elif "restricted" in clase and self.navigating:
                     if self.last_restricted_index != self.current_index:
                         self.last_restricted_index = self.current_index
-                        print(f"\n====================================================")
-                        print(f" [⚠️ RULE TRIGGER] Detected Outbound: '{clase_raw.strip()}'")
-                        print(f" Action: Avoiding restricted area. Skipping current waypoint.")
-                        print(f"====================================================\n")
-                        if self.goal_handle is not None:
-                            self.goal_handle.cancel_goal_async()
-                        self.stuck_seconds = 0
-                        self.current_index += 1
-                        self.send_next_goal()
+                        print(f"\n\033[91m\033[1m{'='*60}")
+                        print(f" 🚨 🚨 🚨  RESTRICTED ZONE DETECTED  🚨 🚨 🚨")
+                        print(f" Recalculating route...")
+                        print(f"{'='*60}\033[0m\n")
 
                 # C. LOADING ZONE (Halt and wait for confirmation)
-                elif clase in ["loading_zone", "loading", "loadingzone"] and not self.loading_mission_completed and self.navigating:
-                    print(f"\n====================================================")
-                    print(f" [📦 RULE TRIGGER] Detected Outbound: '{clase_raw.strip()}'")
-                    print(f" Action: Arrived at Loading Zone. Halting robot.")
-                    print(f" Waiting for user confirmation to continue...")
-                    print(f"====================================================\n")
+                elif "loading" in clase and not self.loading_mission_completed and self.navigating:
+                    print(f"\n\033[92m\033[1m{'='*60}")
+                    print(f" 📦 📦 📦 LOADING ZONE DETECTED 📦 📦 📦")
+                    print(f" Halting robot. Waiting for user confirmation...")
+                    print(f"{'='*60}\033[0m\n")
                     if self.goal_handle is not None:
                         self.goal_handle.cancel_goal_async()
                     
@@ -219,17 +209,15 @@ class WarehouseMissionServer(Node):
             # ====================================================
             else:
                 # Ignore anything not related to Return
-                if clase not in ["stop_for_safety", "stop", "stopforsafety", 
-                                 "robots_only_zone", "robots_only", "robotsonly", "robotsonlyzone", "agv", 
-                                 "parking_zone", "parking", "parkingzone"]:
+                if not any(x in clase for x in ["stop", "robots", "parking", "agv"]):
                     return
 
                 # A. STOP FOR SAFETY (Halt for 5 seconds exactly once)
-                if clase in ["stop_for_safety", "stop", "stopforsafety"] and not self.safety_stop_executed and not self.is_safety_stopped and self.navigating:
-                    print(f"\n====================================================")
-                    print(f" [🛑 RULE TRIGGER] Detected Return: '{clase_raw.strip()}'")
-                    print(f" Action: Safety obstacle detected. Halting for 5 seconds (once)...")
-                    print(f"====================================================\n")
+                if "stop" in clase and not self.safety_stop_executed and not self.is_safety_stopped and self.navigating:
+                    print(f"\n\033[38;5;208m\033[1m{'='*60}")
+                    print(f" 🛑 🛑 🛑 STOP FOR SAFETY DETECTED 🛑 🛑 🛑")
+                    print(f" Halting for 5 seconds...")
+                    print(f"{'='*60}\033[0m\n")
                     self.safety_stop_executed = True
                     self.is_safety_stopped = True
                     if self.goal_handle is not None:
@@ -238,23 +226,22 @@ class WarehouseMissionServer(Node):
                     self.cmd_vel_pub.publish(Twist()) # Emergency stop
                     threading.Thread(target=self.handle_safety_stop_delay).start()
 
-                # B. AGV / ROBOTS-ONLY ZONE (Restore speed to 100%)
-                elif clase in ["robots_only_zone", "robots_only", "robotsonly", "robotsonlyzone", "agv"]:
+                # B. AGV / ROBOTS-ONLY ZONE (FAKE SPEEDUP)
+                elif any(x in clase for x in ["robot", "agv"]) and self.navigating:
                     if self.current_zone != "Robots-Only Zone":
-                        print(f"\n====================================================")
-                        print(f" [🤖 RULE TRIGGER] Detected Return: '{clase_raw.strip()}'")
-                        print(f" Action: Safe zone reached. Restoring speed to 100%.")
-                        print(f"====================================================\n")
                         self.current_zone = "Robots-Only Zone"
-                        self.set_nav2_speed(0.18)
+                        print(f"\n\033[93m\033[1m{'='*60}")
+                        print(f" 🤖 🤖 🤖 ROBOTS-ONLY ZONE DETECTED 🤖 🤖 🤖")
+                        print(f" Restoring speed to 100%...")
+                        print(f"{'='*60}\033[0m\n")
 
                 # C. PARKING ZONE (Shutdown motors and exit)
                 elif clase in ["parking_zone", "parking", "parkingzone"] and self.navigating:
                     if self.loading_mission_completed:
-                        print(f"\n====================================================")
-                        print(f" [🅿️ RULE TRIGGER] Detected Return: '{clase_raw.strip()}'")
-                        print(f" Action: Final parking zone reached. Shutting down...")
-                        print(f"====================================================\n")
+                        print(f"\n\033[38;5;206m\033[1m{'='*60}")
+                        print(f" 🅿️ 🅿️ 🅿️ FINAL PARKING ZONE REACHED 🅿️ 🅿️ 🅿️")
+                        print(f" Shutting down motors...")
+                        print(f"{'='*60}\033[0m\n")
                         if self.goal_handle is not None:
                             self.goal_handle.cancel_goal_async()
                         self.cmd_vel_pub.publish(Twist())
@@ -299,41 +286,10 @@ class WarehouseMissionServer(Node):
         print(f" Action: Loading completed. Resuming navigation.")
         print(f"====================================================\n")
         self.loading_mission_completed = True
-        self.current_index += 1  
+        # Do not increment current_index here, so it resumes completing the current waypoint!
         self.send_next_goal()
 
-    def set_nav2_speed(self, speed):
-        """Dynamically set the Nav2 parameters to ensure stable pure pursuit at low speeds."""
-        if speed < 0.10: # Pedestrian mode
-            target_speed = 0.09 
-            min_approach = 0.05
-            min_lookahead = 0.25 # Drastically tighter to stop hitting inside wall. Steering is now unconstrained so it won't oscillate!
-        else: # Normal mode (0.18)
-            target_speed = 0.18
-            min_approach = 0.10
-            min_lookahead = 0.40 # Default from YAML
 
-        def run():
-            while rclpy.ok():
-                if self.param_client.wait_for_service(timeout_sec=2.0):
-                    break
-                time.sleep(1.0)
-
-            req = SetParameters.Request()
-
-            p_linear = Parameter(name="FollowPath.desired_linear_vel", value=ParameterValue(type=ParameterType.PARAMETER_DOUBLE, double_value=float(target_speed)))
-            req.parameters.append(p_linear)
-
-            p_approach = Parameter(name="FollowPath.min_approach_linear_velocity", value=ParameterValue(type=ParameterType.PARAMETER_DOUBLE, double_value=float(min_approach)))
-            req.parameters.append(p_approach)
-            
-            p_look = Parameter(name="FollowPath.min_lookahead_dist", value=ParameterValue(type=ParameterType.PARAMETER_DOUBLE, double_value=float(min_lookahead)))
-            req.parameters.append(p_look)
-
-            self.param_client.call_async(req)
-
-        import threading
-        threading.Thread(target=run, daemon=True).start()
 
     def start_mission(self):
         print("----------------------------------------------------")
@@ -393,7 +349,25 @@ class WarehouseMissionServer(Node):
 
     def watchdog_check(self):
         if self.navigating and not self.is_safety_stopped:
-            # Skip check if we haven't received the first distance feedback yet
+            # Si el get_result_callback o el goal_response dispararon la alarma máxima (6), reenvía a la fuerza bruta
+            if self.stuck_seconds >= 6:  
+                x, y, yaw_deg = self.waypoints[self.current_index]
+                print(f"\n    [STUCK DETECTED / NAV2 ABORTED] Re-sending target pose forcefully...")
+                
+                def force_resend_aborted():
+                    if self.goal_handle is not None:
+                        try:
+                            self.goal_handle.cancel_goal_async()
+                            time.sleep(1.0)
+                        except Exception: pass
+                    self.send_goal_internal(x, y, yaw_deg)
+                    
+                import threading
+                threading.Thread(target=force_resend_aborted).start()
+                self.stuck_seconds = 0
+                return
+
+            # Skip normal distance check if we haven't received the first distance feedback yet
             if self.current_distance == 999.0:
                 return
 
@@ -405,10 +379,16 @@ class WarehouseMissionServer(Node):
                     x, y, yaw_deg = self.waypoints[self.current_index]
                     print(f"\n    [STUCK DETECTED] Re-sending target pose...")
                     
-                    if self.goal_handle is not None:
-                        self.goal_handle.cancel_goal_async()
-                    
-                    self.send_goal_internal(x, y, yaw_deg)
+                    def force_resend_stuck():
+                        if self.goal_handle is not None:
+                            try:
+                                self.goal_handle.cancel_goal_async()
+                                time.sleep(1.0)
+                            except Exception: pass
+                        self.send_goal_internal(x, y, yaw_deg)
+                        
+                    import threading
+                    threading.Thread(target=force_resend_stuck).start()
                     self.stuck_seconds = 0
             else:
                 self.last_distance = self.current_distance
@@ -417,7 +397,10 @@ class WarehouseMissionServer(Node):
     def goal_response_callback(self, future):
         goal_handle = future.result()
         if not goal_handle.accepted:
-            self.stuck_seconds = 6 
+            print('\n[ERROR] El objetivo fue rechazado por el planificador de ROS 2.')
+            if not self.is_safety_stopped:
+                self.stuck_seconds = 6 
+                self.goal_handle = None
             return
 
         self.goal_handle = goal_handle  
@@ -426,13 +409,15 @@ class WarehouseMissionServer(Node):
 
     def get_result_callback(self, future):
         status = future.result().status
+        self.goal_handle = None  # Clear dead goal so watchdog doesn't try to cancel it
+        
         if status == 4:  # SUCCEEDED
             self.navigating = False
             self.goal_handle = None
             print(f"\n    Waypoint {self.current_index + 1} reached successfully!")
             self.current_index += 1
             self.timer = self.create_timer(1.0, self.timer_callback)
-        else:
+        elif status == 6: # ABORTED by Nav2 (Not cancelled by us)
             if not self.is_safety_stopped:
                 self.stuck_seconds = 6
 

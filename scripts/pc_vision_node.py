@@ -17,14 +17,16 @@ JETSON_VIDEO_URL = f"http://{JETSON_IP}:8089/stream.mjpg"
 # =====================================================================
 # 2. MODEL CONFIGURATION (CUDA SUPPORT)
 # =====================================================================
-ruta_actual = os.path.dirname(os.path.abspath(__file__))
-ruta_models = os.path.join(os.path.dirname(ruta_actual), 'models')
+# --- OPCION 1: Buscar modelo en la carpeta 'models' (Descomentar para usar) ---
+# ruta_actual = os.path.dirname(os.path.abspath(__file__))
+# ruta_models = os.path.join(os.path.dirname(ruta_actual), 'models')
+# model_file = 'best (1).pt'
+# if not os.path.exists(os.path.join(ruta_models, model_file)):
+#     model_file = 'best.pt'
+# ruta_modelo = os.path.join(ruta_models, model_file)
 
-# Check for 'best (1).pt' or fallback to 'best.pt'
-model_file = 'best (1).pt'
-if not os.path.exists(os.path.join(ruta_models, model_file)):
-    model_file = 'best.pt'
-ruta_modelo = os.path.join(ruta_models, model_file)
+# --- OPCION 2: Buscar modelo en la misma carpeta del script (Activa actualmente) ---
+ruta_modelo = 'best.pt'
 
 # Select GPU if CUDA is available, otherwise CPU
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -32,7 +34,7 @@ print(f"[INFO] Loading PyTorch model from: {ruta_modelo}")
 print(f"[INFO] Running on device: {device}")
 
 model = YOLO(ruta_modelo, task='detect')
-UMBRAL_CERTEZA = 0.60  
+UMBRAL_CERTEZA = 0.50  
 
 # =====================================================================
 # 3. PRINT CONTROL MEMORY (AVOIDS CONSOLE LOG SPAM)
@@ -83,9 +85,29 @@ while True:
             xywh = box.xywh[0]
             ancho_px = float(xywh[2])
             alto_px = float(xywh[3])
+            # Define specific pixel thresholds per class
+            thresholds = {
+                "loading_zone": 50.0,
+                "loading": 50.0,
+                "pedestrian_zone": 80.0,
+                "pedestrian": 80.0,
+                "restricted_zone": 20.0,
+                "restricted_area": 20.0,
+                "restricted": 20.0,
+                "stop_for_safety": 60.0,
+                "stop": 60.0,
+                "robot_only_zone": 50.0,
+                "robot_only": 50.0,
+                "agv": 50.0,
+                "parking_zone": 80.0,
+                "parking": 80.0
+            }
             
-            # Filter detections smaller than 35x35 pixels
-            if ancho_px > 35.0 and alto_px > 35.0:
+            label_norm = label.strip().lower().replace(" ", "_").replace("-", "_")
+            min_size = thresholds.get(label_norm, 35.0) # default to 35.0
+            
+            # Filter detections smaller than required pixels
+            if ancho_px > min_size or alto_px > min_size:
                 clases_vistas_este_frame.add(label)
                 
                 # Send UDP packet continuously
