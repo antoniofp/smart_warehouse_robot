@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import os
+os.environ["CYCLONEDDS_LOG_LEVEL"] = "error"
 import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient
@@ -6,18 +8,22 @@ from nav2_msgs.action import NavigateToPose
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import String
+from rcl_interfaces.srv import SetParameters
+from rcl_interfaces.msg import Parameter, ParameterValue, ParameterType
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import math
 import sys
 import time
-import os
 import socket
 import threading
 
-# Variable global compartida para el streaming de video HTTP
+# Shared global variable for HTTP video streaming
 latest_jpeg_bytes = None
 
 class CamHandler(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass
+
     def do_GET(self):
         if self.path.endswith('.mjpg'):
             self.send_response(200)
@@ -34,13 +40,13 @@ class CamHandler(BaseHTTPRequestHandler):
                         self.wfile.write(b'\r\n')
                     except (ConnectionResetError, BrokenPipeError):
                         break
-                time.sleep(0.03) # Streaming fluido a ~30 FPS
+                time.sleep(0.03) # Smooth streaming at ~30 FPS
 
 class WarehouseMissionServer(Node):
     def __init__(self):
         super().__init__('warehouse_mission_server')
 
-        # --- CLIENTES, PUBLICADORES Y SUSCRIPTORES ---
+        # --- CLIENTS, PUBLISHERS AND SUBSCRIBERS ---
         self._action_client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
         self.yolo_pub = self.create_publisher(String, '/yolo_detections', 10)
@@ -50,7 +56,7 @@ class WarehouseMissionServer(Node):
             CompressedImage,
             '/image_raw/compressed',
             self.camera_callback,
-            10)
+            1)
 
         self.confirm_sub = self.create_subscription(
             String,
@@ -58,45 +64,51 @@ class WarehouseMissionServer(Node):
             self.pc_confirmation_callback,
             10)
 
-        # 1. LISTA EXPLÍCITA DE WAYPOINTS DE IDA
+        self.param_client = self.create_client(SetParameters, '/controller_server/set_parameters')
+
+        # 1. EXPLICIT IDA (OUTBOUND) WAYPOINTS
         self.waypoints_ida = [
-            (2.3,  0.0, 0.0),   # Punto 1
-            (2.3,  2.0, 0.0),   # Punto 2
-            (1.3,  2.0, 0.0),   # Punto 3
-            (0.8,  1.6, 0.0),   # Punto 4
-            (-0.2, 1.6, 0.0)    # Punto 5 (Aquí entra la reversa)
+            (2.3,  0.0, 0.0),   # Point 1
+            (2.3,  2.0, 0.0),   # Point 2
+            (1.3,  2.0, 0.0),   # Point 3
+            (0.8,  1.6, 0.0),   # Point 4
+            (-0.2, 1.6, 0.0)    # Point 5 (Reverse maneuver starts here)
         ]
 
-        # 2. LISTA EXPLÍCITA DE WAYPOINTS DE REGRESO (Origen al final)
+        # 2. EXPLICIT REGRESO (RETURN) WAYPOINTS
         self.waypoints_regreso = [
-            (0.8,  1.6, 0.0),   # Regreso - Punto 1
-            (1.3,  2.0, 0.0),   # Regreso - Punto 2
-            (2.3,  2.0, 0.0),   # Regreso - Punto 3
-            (2.3,  0.0, 0.0),   # Regreso - Punto 4
-            (0.0,  0.0, 0.0)    # Regreso - Punto 5 (Origen Final)
+            (0.8,  1.6, 0.0),   # Return - Point 1
+            (1.3,  2.0, 0.0),   # Return - Point 2
+            (2.3,  2.0, 0.0),   # Return - Point 3
+            (2.3,  0.0, 0.0),   # Return - Point 4
+            (0.0,  0.0, 0.0)    # Return - Point 5 (Final Origin)
         ]
 
-        # Configuración de control de ruta
+        # Route control settings
         self.waypoints = self.waypoints_ida
         self.current_index = 0
         self.timer = None
         self.returning = False
         self.goal_handle = None
 
-        # --- MÁQUINA DE ESTADOS LOGÍSTICA ---
+        # --- LOGISTICS STATE MACHINE ---
         self.current_zone = "Robots-Only Zone"  
         self.loading_mission_completed = False  
         self.manual_continue_received = False   
         self.is_safety_stopped = False          
+        self.safety_stop_executed = False  
+        self.last_restricted_index = -1
+        self.last_logged_udp_class = None
+        self.last_udp_packet_time = 0.0
 
-        # --- SISTEMA ANTI-ATASCOS (WATCHDOG) ---
+        # --- ANTI-STUCK SYSTEM (WATCHDOG) ---
         self.navigating = False
         self.current_distance = 999.0
         self.last_distance = 999.0
         self.stuck_seconds = 0
         self.watchdog_timer = self.create_timer(3.0, self.watchdog_check)
 
-        # --- CONFIGURACIÓN RECEPTOR UDP (YOLO) ---
+        # --- UDP RECEIVER CONFIGURATION (YOLO) ---
         self.UDP_IP = "0.0.0.0"
         self.UDP_PORT = 5005
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -104,8 +116,8 @@ class WarehouseMissionServer(Node):
         self.sock.setblocking(False)
         self.udp_timer = self.create_timer(0.1, self.listen_yolo_udp)
 
-        # Interceptación del flujo de velocidad de Nav2 para aplicar reducciones dinámicas
-        self.cmd_vel_sub = self.create_subscription(Twist, '/cmd_vel_nav2_raw', self.cmd_vel_filter_callback, 10)
+        # Initialize the Nav2 controller desired speed to 0.18 m/s
+        self.set_nav2_speed(0.18)
 
     def camera_callback(self, msg):
         global latest_jpeg_bytes
@@ -113,57 +125,83 @@ class WarehouseMissionServer(Node):
 
     def pc_confirmation_callback(self, msg):
         if msg.data.lower() == "continue":
-            self.get_logger().info("¡Se recibió la señal remota para continuar!")
+            self.get_logger().info("Remote confirmation signal ('continue') received!")
             self.manual_continue_received = True
 
     def listen_yolo_udp(self):
-        """Intérprete asíncrono de las 6 reglas basadas en visión"""
+        """Asynchronous UDP interpreter for YOLO rules using Outbound/Inbound Phase Logic"""
+        last_message = None
         try:
-            data, addr = self.sock.recvfrom(1024)
-            mensaje_recibido = data.decode('utf-8')
+            while True:
+                data, addr = self.sock.recvfrom(1024)
+                last_message = data.decode('utf-8')
+        except BlockingIOError:
+            pass
+
+        if last_message is None:
+            return
             
-            if ":" in mensaje_recibido:
-                clase, certeza = mensaje_recibido.split(":")
-                clase = clase.strip()
-                
-                ros_msg = String()
-                ros_msg.data = clase
-                self.yolo_pub.publish(ros_msg)
+        message = last_message
+        
+        if ":" in message:
+            clase_raw, confidence_str = message.split(":")
+            try:
+                confidence = float(confidence_str)
+            except ValueError:
+                confidence = 1.0
 
-                # 1. RESTRICTED AREA
-                if clase == "Restricted Area" and self.navigating:
-                    print(f"\n[⚠️ REGLA: Restricted Area] Evitando zona. Modificando trayectoria...")
-                    if self.goal_handle is not None:
-                        self.goal_handle.cancel_goal_async()
-                    self.stuck_seconds = 0
-                    self.current_index += 1  # Salta el punto actual para explorar el resto
-                    self.send_next_goal()
+            # Reject any detections with confidence below 60%
+            if confidence < 0.60:
+                return
 
-                # 2. PEDESTRIAN ZONE
-                elif clase == "Pedestrian Zone":
+            clase = clase_raw.strip().lower().replace(" ", "_").replace("-", "_")
+            
+            # Publish the raw class on ROS 2 for telemetry
+            ros_msg = String()
+            ros_msg.data = clase_raw.strip()
+            self.yolo_pub.publish(ros_msg)
+
+            # ====================================================
+            # --- PHASE 1: OUTBOUND (IDA) ---
+            # ====================================================
+            if not self.returning:
+                # Ignore anything not related to Outbound
+                if clase not in ["pedestrian_zone", "pedestrian", "pedestrianzone", 
+                                 "restricted_area", "restricted", "restrictedarea", 
+                                 "loading_zone", "loading", "loadingzone"]:
+                    return
+
+                # A. PEDESTRIAN ZONE (Speed reduced to 30% of original, which is 0.054 m/s)
+                if clase in ["pedestrian_zone", "pedestrian", "pedestrianzone"]:
                     if self.current_zone != "Pedestrian Zone":
-                        print(f"\n[🚶 REGLA: Pedestrian Zone] Operadores en área. Velocidad reducida al 50%.")
+                        print(f"\n====================================================")
+                        print(f" [🚶 RULE TRIGGER] Detected Outbound: '{clase_raw.strip()}'")
+                        print(f" Action: Pedestrians in area. Reducing speed by 70% (to 30%).")
+                        print(f"====================================================\n")
                         self.current_zone = "Pedestrian Zone"
+                        self.set_nav2_speed(0.054)
 
-                # 3. ROBOTS-ONLY ZONE
-                elif clase == "Robots-Only Zone":
-                    if self.current_zone != "Robots-Only Zone":
-                        print(f"\n[🤖 REGLA: Robots-Only Zone] Zona segura. Restableciendo velocidad normal.")
-                        self.current_zone = "Robots-Only Zone"
+                # B. RESTRICTED AREA (Skip current waypoint)
+                elif clase in ["restricted_area", "restricted", "restrictedarea"] and self.navigating:
+                    if self.last_restricted_index != self.current_index:
+                        self.last_restricted_index = self.current_index
+                        print(f"\n====================================================")
+                        print(f" [⚠️ RULE TRIGGER] Detected Outbound: '{clase_raw.strip()}'")
+                        print(f" Action: Avoiding restricted area. Skipping current waypoint.")
+                        print(f"====================================================\n")
+                        if self.goal_handle is not None:
+                            self.goal_handle.cancel_goal_async()
+                        self.stuck_seconds = 0
+                        self.current_index += 1
+                        self.send_next_goal()
 
-                # 4. STOP FOR SAFETY
-                elif clase == "Stop for Safety" and not self.is_safety_stopped and self.navigating:
-                    print(f"\n[🛑 REGLA: Stop for Safety] Obstáculo detectado. Frenando por 5 segundos...")
-                    self.is_safety_stopped = True
-                    if self.goal_handle is not None:
-                        self.goal_handle.cancel_goal_async()
-                    
-                    self.cmd_vel_pub.publish(Twist()) # Freno instantáneo
-                    threading.Thread(target=self.handle_safety_stop_delay).start()
-
-                # 5. LOADING ZONE
-                elif clase == "Loading Zone" and not self.loading_mission_completed and self.navigating:
-                    print(f"\n[📦 REGLA: Loading Zone] Robot alineado y en posición de carga. Estacionando...")
+                # C. LOADING ZONE (Halt and wait for confirmation)
+                elif clase in ["loading_zone", "loading", "loadingzone"] and not self.loading_mission_completed and self.navigating:
+                    print(f"\n====================================================")
+                    print(f" [📦 RULE TRIGGER] Detected Outbound: '{clase_raw.strip()}'")
+                    print(f" Action: Arrived at Loading Zone. Halting robot.")
+                    print(f" Waiting for user confirmation to continue...")
+                    print(f"====================================================\n")
                     if self.goal_handle is not None:
                         self.goal_handle.cancel_goal_async()
                     
@@ -176,55 +214,130 @@ class WarehouseMissionServer(Node):
                     
                     threading.Thread(target=self.handle_loading_zone_sequence).start()
 
-                # 6. PARKING ZONE
-                elif clase == "Parking Zone" and self.navigating:
+            # ====================================================
+            # --- PHASE 2: INBOUND (RETURN) ---
+            # ====================================================
+            else:
+                # Ignore anything not related to Return
+                if clase not in ["stop_for_safety", "stop", "stopforsafety", 
+                                 "robots_only_zone", "robots_only", "robotsonly", "robotsonlyzone", "agv", 
+                                 "parking_zone", "parking", "parkingzone"]:
+                    return
+
+                # A. STOP FOR SAFETY (Halt for 5 seconds exactly once)
+                if clase in ["stop_for_safety", "stop", "stopforsafety"] and not self.safety_stop_executed and not self.is_safety_stopped and self.navigating:
+                    print(f"\n====================================================")
+                    print(f" [🛑 RULE TRIGGER] Detected Return: '{clase_raw.strip()}'")
+                    print(f" Action: Safety obstacle detected. Halting for 5 seconds (once)...")
+                    print(f"====================================================\n")
+                    self.safety_stop_executed = True
+                    self.is_safety_stopped = True
+                    if self.goal_handle is not None:
+                        self.goal_handle.cancel_goal_async()
+                    
+                    self.cmd_vel_pub.publish(Twist()) # Emergency stop
+                    threading.Thread(target=self.handle_safety_stop_delay).start()
+
+                # B. AGV / ROBOTS-ONLY ZONE (Restore speed to 100%)
+                elif clase in ["robots_only_zone", "robots_only", "robotsonly", "robotsonlyzone", "agv"]:
+                    if self.current_zone != "Robots-Only Zone":
+                        print(f"\n====================================================")
+                        print(f" [🤖 RULE TRIGGER] Detected Return: '{clase_raw.strip()}'")
+                        print(f" Action: Safe zone reached. Restoring speed to 100%.")
+                        print(f"====================================================\n")
+                        self.current_zone = "Robots-Only Zone"
+                        self.set_nav2_speed(0.18)
+
+                # C. PARKING ZONE (Shutdown motors and exit)
+                elif clase in ["parking_zone", "parking", "parkingzone"] and self.navigating:
                     if self.loading_mission_completed:
-                        print(f"\n[🅿️ REGLA: Parking Zone] Estacionamiento final alcanzado con éxito. Apagando motores.")
+                        print(f"\n====================================================")
+                        print(f" [🅿️ RULE TRIGGER] Detected Return: '{clase_raw.strip()}'")
+                        print(f" Action: Final parking zone reached. Shutting down...")
+                        print(f"====================================================\n")
                         if self.goal_handle is not None:
                             self.goal_handle.cancel_goal_async()
                         self.cmd_vel_pub.publish(Twist())
                         self.destroy_node()
                         rclpy.shutdown()
                         sys.exit(0)
-                    else:
-                        print(f"\n[ℹ️ INFO: Parking Zone] Pasando de largo (Carga pendiente).")
 
-        except BlockingIOError:
-            pass
 
     def handle_safety_stop_delay(self):
         time.sleep(5.0)
-        print("    -> Tiempo de seguridad cumplido. Reanudando marcha...")
+        print(f"\n====================================================")
+        print(f" [🚀 RULE UPDATE] Safety stop timer expired.")
+        print(f" Action: Resuming return navigation.")
+        print(f"====================================================\n")
         self.is_safety_stopped = False
         self.send_next_goal()
 
     def handle_loading_zone_sequence(self):
         self.manual_continue_received = False
-        print("    [ESPERA] Esperando confirmación remota ('continue') desde la PC...")
-        while not self.manual_continue_received:
-            time.sleep(0.5)
+        print("\n====================================================")
+        print(" [INFO] Robot has arrived at the Loading Zone!")
+        print(" --> PRESS [ENTER] IN THIS TERMINAL TO CONTINUE <--")
+        print(" (Or send 'continue' confirmation from your PC) ")
+        print("====================================================")
         
-        print("    -> Carga lista. Avanzando directo al punto de Parking (Siguiente Waypoint)...")
+        # Start a background daemon thread to wait for terminal Enter input
+        def wait_for_enter():
+            try:
+                input()
+                self.manual_continue_received = True
+            except Exception:
+                pass
+                
+        t = threading.Thread(target=wait_for_enter, daemon=True)
+        t.start()
+        
+        while not self.manual_continue_received:
+            time.sleep(0.1)
+        
+        print(f"\n====================================================")
+        print(f" [🚀 RULE UPDATE] User pressed ENTER / PC continue received.")
+        print(f" Action: Loading completed. Resuming navigation.")
+        print(f"====================================================\n")
         self.loading_mission_completed = True
         self.current_index += 1  
         self.send_next_goal()
 
-    def cmd_vel_filter_callback(self, msg):
-        """Modulador dinámico de velocidad en base a las zonas de visión"""
-        twist_modificado = Twist()
-        twist_modificado.angular.z = msg.angular.z
-        
-        if self.current_zone == "Pedestrian Zone":
-            twist_modificado.linear.x = msg.linear.x * 0.5  # Velocidad dividida a la mitad
-        else:
-            twist_modificado.linear.x = msg.linear.x
+    def set_nav2_speed(self, speed):
+        """Dynamically set the Nav2 parameters to ensure stable pure pursuit at low speeds."""
+        if speed < 0.10: # Pedestrian mode
+            target_speed = 0.09 
+            min_approach = 0.05
+            min_lookahead = 0.25 # Drastically tighter to stop hitting inside wall. Steering is now unconstrained so it won't oscillate!
+        else: # Normal mode (0.18)
+            target_speed = 0.18
+            min_approach = 0.10
+            min_lookahead = 0.40 # Default from YAML
+
+        def run():
+            while rclpy.ok():
+                if self.param_client.wait_for_service(timeout_sec=2.0):
+                    break
+                time.sleep(1.0)
+
+            req = SetParameters.Request()
+
+            p_linear = Parameter(name="FollowPath.desired_linear_vel", value=ParameterValue(type=ParameterType.PARAMETER_DOUBLE, double_value=float(target_speed)))
+            req.parameters.append(p_linear)
+
+            p_approach = Parameter(name="FollowPath.min_approach_linear_velocity", value=ParameterValue(type=ParameterType.PARAMETER_DOUBLE, double_value=float(min_approach)))
+            req.parameters.append(p_approach)
             
-        if not self.is_safety_stopped and self.navigating:
-            self.cmd_vel_pub.publish(twist_modificado)
+            p_look = Parameter(name="FollowPath.min_lookahead_dist", value=ParameterValue(type=ParameterType.PARAMETER_DOUBLE, double_value=float(min_lookahead)))
+            req.parameters.append(p_look)
+
+            self.param_client.call_async(req)
+
+        import threading
+        threading.Thread(target=run, daemon=True).start()
 
     def start_mission(self):
         print("----------------------------------------------------")
-        print(f"    Iniciando misión de almacén. Puntos de IDA: {len(self.waypoints_ida)}")
+        print(f"    Starting Warehouse Mission. IDA Waypoints: {len(self.waypoints_ida)}")
         print("----------------------------------------------------")
         self.send_next_goal()
 
@@ -233,15 +346,15 @@ class WarehouseMissionServer(Node):
             if not self.returning:
                 self.execute_backwards_maneuver()
             else:
-                print("\n    ¡MISIÓN COMPLETADA CON ÉXITO! El robot volvió al origen original.")
+                print("\n    SUCCESS: Mission completed! The robot returned to the origin.")
                 self.destroy_node()
                 rclpy.shutdown()
                 sys.exit(0)
             return
 
         x, y, yaw_deg = self.waypoints[self.current_index]
-        ruta_str = "REGRESO" if self.returning else "IDA"
-        print(f"\n    [{ruta_str} - Punto {self.current_index + 1}/{len(self.waypoints)}] Objetivo principal: X={x}, Y={y}, Yaw={yaw_deg}")
+        ruta_str = "RETURN" if self.returning else "IDA"
+        print(f"\n    [{ruta_str} - Waypoint {self.current_index + 1}/{len(self.waypoints)}] Target: X={x}, Y={y}, Yaw={yaw_deg}")
 
         self.navigating = True
         self.current_distance = 999.0
@@ -252,7 +365,7 @@ class WarehouseMissionServer(Node):
 
     def send_goal_internal(self, x, y, yaw_deg):
         if not self._action_client.wait_for_server(timeout_sec=5.0):
-            self.get_logger().error('El servidor de Nav2 no está disponible.')
+            self.get_logger().error('Nav2 action server is not available.')
             return
 
         goal_msg = NavigateToPose.Goal()
@@ -266,7 +379,7 @@ class WarehouseMissionServer(Node):
         goal_msg.pose.pose.orientation.z = math.sin(half_yaw)
         goal_msg.pose.pose.orientation.w = math.cos(half_yaw)
 
-        print(f"    [ENVIANDO] Inyectando coordenadas a Nav2: X={x}, Y={y}...")
+
 
         send_goal_future = self._action_client.send_goal_async(
             goal_msg, 
@@ -276,17 +389,21 @@ class WarehouseMissionServer(Node):
 
     def feedback_callback(self, feedback_msg):
         self.current_distance = feedback_msg.feedback.distance_remaining
-        print(f"    [>>] Moviendo... Distancia al destino: {self.current_distance:.2f} m    ", end='\r')
+        print(f"    [>>] Navigating... Distance remaining: {self.current_distance:.2f} m    ", end='\r')
 
     def watchdog_check(self):
         if self.navigating and not self.is_safety_stopped:
+            # Skip check if we haven't received the first distance feedback yet
+            if self.current_distance == 999.0:
+                return
+
             diferencia = abs(self.last_distance - self.current_distance)
 
-            if self.current_distance == 999.0 or diferencia < 0.05:
+            if diferencia < 0.05 and self.current_distance > 0.35:
                 self.stuck_seconds += 3
                 if self.stuck_seconds >= 6:  
                     x, y, yaw_deg = self.waypoints[self.current_index]
-                    print(f"\n    [ATASCO DETECTADO] Re-enviando de forma continua e instantánea.")
+                    print(f"\n    [STUCK DETECTED] Re-sending target pose...")
                     
                     if self.goal_handle is not None:
                         self.goal_handle.cancel_goal_async()
@@ -312,7 +429,7 @@ class WarehouseMissionServer(Node):
         if status == 4:  # SUCCEEDED
             self.navigating = False
             self.goal_handle = None
-            print(f"\n    Punto {self.current_index + 1} alcanzado con éxito!")
+            print(f"\n    Waypoint {self.current_index + 1} reached successfully!")
             self.current_index += 1
             self.timer = self.create_timer(1.0, self.timer_callback)
         else:
@@ -325,13 +442,13 @@ class WarehouseMissionServer(Node):
         self.send_next_goal()
 
     def execute_backwards_maneuver(self):
-        print("\n    Mapeo de ida listo. Iniciando maniobra de reversa...")
+        print("\n    IDA navigation completed. Initiating backwards maneuver...")
         distancia_objetivo = 1.5   
         velocidad_lineal = -0.20   
         velocidad_angular = -0.40    
         tiempo_reversa = distancia_objetivo / abs(velocidad_lineal)
 
-        print(f"    Moviendo en reversa durante {tiempo_reversa:.2f} segundos...")
+        print(f"    Moving backwards for {tiempo_reversa:.2f} seconds...")
         msg_twist = Twist()
         msg_twist.linear.x = velocidad_lineal
         msg_twist.angular.z = velocidad_angular
@@ -343,19 +460,19 @@ class WarehouseMissionServer(Node):
             self.cmd_vel_pub.publish(msg_twist)
             time.sleep(rate)
 
-        print("    Deteniendo motores...")
+        print("    Stopping motors...")
         freno_twist = Twist()
         for _ in range(5):
             self.cmd_vel_pub.publish(freno_twist)
             time.sleep(0.05)
 
-        print("\n    Cambiando a la ruta explícita de regreso...")
+        print("\n    Switching to return route...")
 
         self.waypoints = self.waypoints_regreso
         self.current_index = 0
         self.returning = True
 
-        print(f"    Ruta de regreso cargada. Puntos totales a visitar: {len(self.waypoints)}")
+        print(f"    Return route loaded. Waypoints to visit: {len(self.waypoints)}")
         time.sleep(2.0)
         self.send_next_goal()
 
@@ -373,13 +490,13 @@ def main(args=None):
     server_thread = threading.Thread(target=start_http_server, daemon=True)
     server_thread.start()
     
-    print("    Puente de Streaming HTTP y Servidor de Reglas Inteligentes Activo (Puerto 8089).")
+    print("    HTTP Video Stream Bridge & Vision Rules Server Active (Port 8089).")
     
     try:
         mission_node.start_mission()
         rclpy.spin(mission_node)
     except KeyboardInterrupt:
-        print("\n    Misión cancelada manualmente. Deteniendo el carro...")
+        print("\n    Mission manually cancelled. Stopping robot...")
         freno = Twist()
         mission_node.cmd_vel_pub.publish(freno)
     finally:

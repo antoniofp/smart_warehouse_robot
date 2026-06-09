@@ -34,7 +34,7 @@ echo "[1/5] ROSboard is DISABLED (to conserve resources)"
 
 # 4. Start Foxglove Bridge (for modern web-based telemetry)
 echo "[2/5] Starting Foxglove Bridge..."
-ros2 launch rosbridge_server rosbridge_websocket_launch.xml > /dev/null 2>&1 &
+ros2 launch rosbridge_server rosbridge_websocket_launch.xml > /root/smart_warehouse_robot/log/foxglove.log 2>&1 &
 FOXGLOVE_PID=$!
 
 # 5. Start Hardware Bringup (Laser + Base)

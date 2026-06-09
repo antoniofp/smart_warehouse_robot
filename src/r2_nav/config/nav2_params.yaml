@@ -87,6 +87,7 @@ bt_navigator_rclcpp_node:
 
 controller_server:
   ros__parameters:
+    cmd_vel_topic: "cmd_vel"
     use_sim_time: False
     controller_frequency: 5.0
     min_x_velocity_threshold: 0.001
@@ -124,7 +125,7 @@ controller_server:
       cost_scaling_dist: 0.6
       cost_scaling_factor: 10.0
       lookahead_dist: 0.45
-      min_lookahead_dist: 0.15
+      min_lookahead_dist: 0.4
       max_lookahead_dist: 1.0
       lookahead_time: 1.5
       use_interpolation: true
@@ -244,6 +245,7 @@ planner_server_rclcpp_node:
 
 recoveries_server:
   ros__parameters:
+    cmd_vel_topic: "cmd_vel"
     costmap_topic: local_costmap/costmap_raw
     footprint_topic: local_costmap/published_footprint
     cycle_frequency: 10.0
