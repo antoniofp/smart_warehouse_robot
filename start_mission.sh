@@ -39,7 +39,7 @@ sleep 30
 echo "[2/2] Starting Mission Vision Controller..."
 export CYCLONEDDS_URI='<CycloneDDS><Domain><General><NetworkInterfaceAddress>wlan0</NetworkInterfaceAddress></General></Domain></CycloneDDS>'
 export CYCLONEDDS_LOG_LEVEL=error
-python3 -u $DIR/mission_vision.py
+python3 -u $DIR/scripts/mission_vision.py
 
 echo "[INFO] Mission finished. Cleaning up..."
 # Clean shutdown of SLAM navigation
