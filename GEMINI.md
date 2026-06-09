@@ -26,17 +26,17 @@ This workspace uses a remote setup where the AI agent (or user) runs on a fast h
 - Git operations on the Jetson **must only** be executed inside the `beautiful_snyder` Docker container (which runs as `root` and has GitHub credentials set up) to avoid permission errors on the host.
   - *Example:* `ssh jetson-desktop "docker exec beautiful_snyder bash -c 'cd /root/smart_warehouse_robot && git pull'"`
 
-### 4. Porting and Pushing Changes
-When saving working changes, the AI should choose the most efficient workflow:
-- **Files Outside the Repo:** If changes were made to files *outside* the repository on the Jetson (e.g. `.bashrc` or global system configs), **do not** attempt to push them to git. Instead, document these changes in `README.md` or `GEMINI.md` if they are relevant to the robot's setup.
-- **Scenario A (Mostly Host Changes):** If most repository modifications were made in the host clone with only minor SSH tweaks on the Jetson:
-  1. Port the Jetson repository tweaks back to the host clone.
-  2. Commit and push from the host PC.
-  3. Pull inside the Jetson container.
-- **Scenario B (Mostly Jetson Changes):** If most repository modifications were made directly on the Jetson via SSH:
-  1. Commit and push directly from inside the Jetson container.
-  2. Pull the changes to the host clone.
-  3. Merge and push any remaining host-side changes.
+### 4. Strict Code Quality & Synchronization Rules (Tested Changes Only)
+To prevent repository clutter and coordinate-frame mismatches, follow these strict rules for git operations:
+- **Tested Changes Only:** Only commit and push changes that have been fully tested on the robot and verified as an actual improvement. NEVER commit or push untested or unfinished code.
+- **No Lazy Pushes for File Transfer:** To transfer and test changes on the Jetson, edit the files directly on the Jetson via SSH. Do NOT use git commits/pushes as a transfer mechanism for untested code.
+- **Verifying Jetson State before Host Push:**
+  Before pushing any tested improvements from the host PC:
+  1. Check the Jetson repository status for untracked, modified, or uncommitted files.
+  2. If there are any uncommitted files on the Jetson, **explicitly ask the user** whether to keep them, commit and push them, or discard them. Never silently commit, discard, or force-push unfinished work.
+  3. If you are keeping unfinished work on the Jetson, do NOT push from the host PC to prevent conflicts.
+  4. If the Jetson is in a clean and aligned state, pull remote changes to the host, commit/push host improvements, and then pull them back on the Jetson.
+- **Files Outside the Repo:** If changes were made to files *outside* the repository on the Jetson (e.g., `.bashrc`), do not push them. Document them in `README.md` or `GEMINI.md`.
 
 ## Automated Startup
 - **Mapping Script:** `./start_mapping.sh` (Starts ROSboard, Bringup, Camera, and SLAM with CycloneDDS).
